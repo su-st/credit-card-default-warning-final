@@ -8,8 +8,8 @@ from _common import *
 cols = feature_cols()
 rng = np.random.default_rng(RANDOM_STATE)
 rows = []
-for i in range(60):  # TODO 可加大搜尋次數或改用 Optuna
-    p = dict(n_estimators=int(rng.choice([200, 300, 500, 800])),
+for i in range(200):  # TODO 可加大搜尋次數或改用 Optuna
+    p = dict(n_estimators=int(rng.choice([200, 300, 500, 800, 1000, 1500])),
              learning_rate=float(rng.choice([0.01, 0.02, 0.03, 0.05, 0.1])),
              max_depth=int(rng.choice([3, 4, 5, 6])), min_child_weight=int(rng.choice([1, 3, 5, 10])),
              subsample=float(rng.choice([0.6, 0.8, 1.0])), colsample_bytree=float(rng.choice([0.5, 0.7, 0.9, 1.0])),
