@@ -18,18 +18,69 @@ outputs/        執行後產生的結果（不上傳 GitHub）
 
 ## 安裝
 
+需要：Python 3.10 以上（建議 3.12）、Git。
+
+### 1. 下載專案
+
 ```bash
-pip install -r requirements.txt
-cp .env.example .env      # Windows 用 copy .env.example .env
+git clone https://github.com/su-st/credit-card-default-warning-final.git
+cd credit-card-default-warning-final
 ```
+
+### 2. 建立虛擬環境並安裝套件
+
+虛擬環境 `.venv` 只給這個專案用，不會跟其他課的套件衝突。
+
+Windows（cmd）：
+
+```bat
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+copy .env.example .env
+```
+
+Mac、Linux 或 WSL（Ubuntu）：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+啟用成功時，終端機開頭會出現 `(.venv)`。**之後每次打開專案，都要先執行第二行啟用虛擬環境。**
+
+### Windows 11 安裝被擋住怎麼辦
+
+如果出現「已被貴組織的 Device Guard 原則封鎖」或「應用程式控制原則已封鎖此檔案」，
+代表 Windows 的「智慧型應用程式控制」擋住了 Python 套件。
+
+**不要關閉智慧型應用程式控制**，關掉後可能要重設電腦才能再打開。請改用 WSL（Windows 內建的 Linux 環境）：
+
+1. 在 cmd 輸入 `wsl -l -v`，有看到 `Ubuntu` 就代表已經裝過，跳到第 3 步
+2. 沒有的話，以系統管理員身分開啟 PowerShell，輸入 `wsl --install`，完成後重新開機並設定 Linux 帳號密碼
+3. 在 cmd 輸入 `wsl` 進入 Ubuntu，再輸入：
+   ```bash
+   sudo apt update
+   sudo apt install -y python3-venv python3-pip git
+   cd ~
+   ```
+4. 接著從上面「1. 下載專案」開始，照「Mac、Linux 或 WSL」的指令做
+
+如果 Ubuntu 裡出現 `Temporary failure resolving` 或 `Could not resolve host`，
+通常是防毒軟體擋住了 WSL 的網路。安裝套件、`git push`、`git pull` 時暫時關閉防毒，完成後再打開。
+還是不行就問組長。
 
 ## 執行
 
 ```bash
-python -m src.export              # 1. 產生交接檔 outputs/predictions.csv（約 10 秒）
-streamlit run app/main.py         # 2. 開啟平台
-cd experiments && python 01_tuning.py   # 執行某個實驗
+python -m src.export                      # 1. 產生交接檔 outputs/predictions.csv（約 10 秒）
+python -m streamlit run app/main.py       # 2. 開啟平台，瀏覽器打開 http://localhost:8501
+cd experiments && python 01_tuning.py     # 執行某個實驗（檔名換成自己的）
 ```
+
+要關閉平台時，在終端機按 Ctrl + C。
 
 ## 分工
 
@@ -46,8 +97,8 @@ cd experiments && python 01_tuning.py   # 執行某個實驗
 `main` 只放可以正常執行的版本，每個人在自己的分支上做，完成後發 Pull Request 給組長合併。
 
 ```bash
-git clone <儲存庫網址>
-cd credit-warning
+git clone https://github.com/su-st/credit-card-default-warning-final.git
+cd credit-card-default-warning-final
 git checkout -b exp/tuning            # 開自己的分支（名稱見上表）
 
 # 修改、執行、確認沒問題後
