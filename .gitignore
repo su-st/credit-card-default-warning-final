@@ -1,0 +1,8 @@
+.env
+outputs/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/credit.zip
+.DS_Store
+.venv/

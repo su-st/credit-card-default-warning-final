@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+xgboost
+xlrd
+joblib
+streamlit
+python-dotenv
+requests
+line-bot-sdk>=3
+shap
+matplotlib
