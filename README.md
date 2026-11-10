@@ -38,8 +38,8 @@ cd experiments && python 01_tuning.py   # 執行某個實驗
 | 余旻恩 | 調參、重複交叉驗證（RQ1 至 RQ3）、輸出「移除敏感屬性」的第二份交接檔 | experiments/01、03、src/export.py | exp/tuning、exp/repeated-cv、exp/export-no-sensitive |
 | 陳品婕 | SHAP 分析、繳款狀態類別編碼 | experiments/04～05 | exp/shap、exp/pay-categorical |
 | 張佩芩 | 公平性加入教育與婚姻分組、金管會指引檢核表 | experiments/06、docs/ | exp/fairness |
-| 蔡翌佳 | 平台「公平性監控」頁、展示影片 | app/views/fairness.py | feat/fairness-page |
-| 蘇韻蓉 | 門檻與成本分析、平台、TAIDE、關懷訊息、LINE Bot、整合與審核 | experiments/02、app/、llm/、notify/ | exp/threshold、feat/platform、feat/taide、feat/line |
+| 蔡翌佳 | 平台「公平性監控」與「單一客戶查詢」頁面、展示影片 | app/views/fairness.py、app/views/customer.py | feat/fairness-page、feat/customer-page |
+| 蘇韻蓉 | 門檻與成本分析、每月風險名單頁、TAIDE、關懷訊息、LINE Bot、整合與審核 | experiments/02、app/main.py、app/views/risk_list.py、llm/、notify/ | exp/threshold、feat/platform、feat/taide、feat/line |
 
 ## Git 分支流程
 
