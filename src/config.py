@@ -21,4 +21,14 @@ XGB_TUNED = dict(n_estimators=500, learning_rate=0.01, max_depth=6, min_child_we
 
 # 平台使用的模型設定
 PLATFORM_USE_SENSITIVE = True   # RQ1 正式結果出來後再決定是否移除敏感屬性
-LIST_THRESHOLD = 0.5            # 門檻情境分析完成後更新
+LIST_THRESHOLD = 0.5            # 備用值：還沒執行 experiments/02_threshold.py 時才會用到
+
+# ---------- 門檻自動選擇（experiments/02_threshold.py）----------
+# 規則：「cost」總成本最低、「f1」F1 最高、「top_n」固定名單人數
+THRESHOLD_RULE = "f1"
+# 以下三個是成本假設，數字需要自己訂定並在報告說明依據
+LOSS_PER_DEFAULT = None    # 漏判一位違約者的損失（元）。None 代表用訓練集違約者最近一期帳單的平均
+COST_PER_CONTACT = 50      # 【假設】聯絡一位客戶的成本（元）
+RESCUE_RATE = 0.2          # 【假設】聯絡後成功避免違約的比例
+TOP_N_RATE = 0.2           # 規則為 top_n 時，名單佔全部客戶的比例
+MAX_LIST_RATE = None       # 規則為 cost 時的人力上限：名單最多佔全部客戶的比例，None 代表不限制
