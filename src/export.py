@@ -12,10 +12,11 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-from .config import LIST_THRESHOLD, OUT_DIR, PLATFORM_USE_SENSITIVE, XGB_TUNED
+from .config import OUT_DIR, PLATFORM_USE_SENSITIVE, XGB_TUNED
 from .data import age_group, feature_cols, load_data, split
 from .evaluate import metrics
 from .models import make_model
+from .threshold import load_threshold
 
 MONTH = {1: "9 月", 2: "8 月", 3: "7 月", 4: "6 月", 5: "5 月", 6: "4 月"}
 SEX = {1: "男", 2: "女"}
@@ -56,6 +57,7 @@ def top_factors(model, X: pd.DataFrame, k: int = 3) -> list:
 def main():
     df = load_data()
     train, test = split(df)
+    threshold, source = load_threshold()
     cols = feature_cols(sensitive=PLATFORM_USE_SENSITIVE)
     model = make_model("XGBoost", cols, train["default"], XGB_TUNED).fit(train[cols], train["default"])
     prob = model.predict_proba(test[cols])[:, 1]
@@ -63,7 +65,7 @@ def main():
     out = pd.DataFrame({
         "customer_id": test.index,
         "risk_score": np.round(prob, 4),
-        "in_list": (prob >= LIST_THRESHOLD).astype(int),
+        "in_list": (prob >= threshold).astype(int),
         "sex": test["SEX"].map(SEX).values,
         "age": test["AGE"].values,
         "age_group": age_group(test["AGE"]).astype(str).values,
@@ -83,11 +85,12 @@ def main():
     OUT_DIR.mkdir(exist_ok=True)
     out.to_csv(OUT_DIR / "predictions.csv", index=False, encoding="utf-8-sig")
     joblib.dump({"model": model, "cols": cols}, OUT_DIR / "model.joblib")
-    m = {k: (round(float(v), 4) if isinstance(v, float) else v) for k, v in metrics(test["default"], prob, LIST_THRESHOLD).items()}
-    meta = {"created": datetime.now().isoformat(timespec="seconds"), "threshold": LIST_THRESHOLD,
+    m = {k: (round(float(v), 4) if isinstance(v, float) else v) for k, v in metrics(test["default"], prob, threshold).items()}
+    meta = {"created": datetime.now().isoformat(timespec="seconds"), "threshold": threshold, "threshold_source": source,
             "use_sensitive": PLATFORM_USE_SENSITIVE, "xgb_params": XGB_TUNED, "test_metrics": m}
     (OUT_DIR / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"已輸出 {len(out):,} 位客戶到 outputs/predictions.csv")
+    print(f"使用門檻：{threshold}（{source}）")
     print("測試集表現：", m)
 
 
