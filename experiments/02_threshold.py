@@ -52,3 +52,4 @@ print("\n敏感度分析（總成本最低規則，不設人力上限）：")
 print(sens.to_string(index=False))
 # TODO 畫出門檻對總成本的曲線圖，存到 outputs/results/
 # TODO 在報告說明三個成本假設的依據，並討論敏感度分析的結果
+# TODO 設定 config.py 的 MAX_LIST_RATE（名單人力上限）：目前聯絡成本低時，總成本最低會選擇聯絡幾乎所有人，實務上不可行

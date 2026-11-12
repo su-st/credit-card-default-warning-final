@@ -86,11 +86,11 @@ cd experiments && python 01_tuning.py     # 執行某個實驗（檔名換成自
 
 | 組員 | 工作 | 檔案 | 分支 |
 |---|---|---|---|
-| 余旻恩 | 調參、重複交叉驗證（RQ1 至 RQ3）、輸出「移除敏感屬性」的第二份交接檔 | experiments/01、03、src/export.py | exp/tuning、exp/repeated-cv、exp/export-no-sensitive |
-| 陳品婕 | SHAP 分析、繳款狀態類別編碼 | experiments/04～05 | exp/shap、exp/pay-categorical |
-| 張佩芩 | 公平性加入教育與婚姻分組、金管會指引檢核表 | experiments/06、docs/ | exp/fairness |
+| 余旻恩 | 調參、重複交叉驗證（RQ1 至 RQ3）、輸出「移除敏感屬性」的第二份交接檔、機率校準檢查 | experiments/01、03、08、src/export.py | exp/tuning、exp/repeated-cv、exp/export-no-sensitive、exp/calibration |
+| 陳品婕 | SHAP 分析、繳款狀態類別編碼、漏判違約者分析 | experiments/04～05、09 | exp/shap、exp/pay-categorical、exp/missed-analysis |
+| 張佩芩 | 公平性加入教育與婚姻分組、族群門檻（改善公平性）、金管會指引檢核表 | experiments/06、07、docs/ | exp/fairness、exp/group-threshold |
 | 蔡翌佳 | 平台「公平性監控」與「單一客戶查詢」頁面、展示影片 | app/views/fairness.py、app/views/customer.py | feat/fairness-page、feat/customer-page |
-| 蘇韻蓉 | 門檻與成本分析、每月風險名單頁、TAIDE、關懷訊息、LINE Bot、整合與審核 | experiments/02、app/main.py、app/views/risk_list.py、llm/、notify/ | exp/threshold、feat/platform、feat/taide、feat/line |
+| 蘇韻蓉 | 門檻與成本分析（含成本假設依據與名單上限）、每月風險名單頁、TAIDE 與改善前後比較、關懷訊息、LINE Bot、整合與審核 | experiments/02、10、app/main.py、app/views/risk_list.py、llm/、notify/ | exp/threshold、exp/taide-eval、feat/platform、feat/taide、feat/line |
 
 ## Git 分支流程
 
