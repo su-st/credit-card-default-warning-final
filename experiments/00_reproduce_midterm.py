@@ -28,7 +28,14 @@ def sha(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--midterm-indices", type=Path)
+    parser.add_argument("--midterm-folds", type=Path,
+                        help="JSON rows containing midterm_index and zero-based fold")
+    parser.add_argument("--midterm-source", type=Path, help="Historical source provenance JSON")
     args = parser.parse_args()
+    # Capture the source state before this run creates untracked results/ files.
+    git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    git_dirty = bool(subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=normal"], cwd=ROOT, text=True))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + "-l0-" + uuid4().hex[:8]
     model_id = "xgb-baseline-sensitive-s42train-l0"
     out = ROOT / "outputs" / "runs" / run_id
@@ -60,10 +67,18 @@ def main():
     if args.midterm_indices:
         historical = np.asarray(json.loads(args.midterm_indices.read_text()), dtype=int)
         historical_match = bool(np.array_equal(test.index.to_numpy(), historical + 1))
+    historical_folds_match = None
+    if args.midterm_folds:
+        historical_folds = pd.DataFrame(json.loads(args.midterm_folds.read_text()))
+        historical_ids = historical_folds["midterm_index"].to_numpy() + 1
+        historical_folds_match = bool(
+            np.array_equal(train.index.to_numpy(), historical_ids)
+            and np.array_equal(fold_assignment, historical_folds["fold"].to_numpy()))
     checks = [
         ("test_rows", 6000, len(test), len(test) == 6000),
         ("test_defaults", 1327, int(y_test.sum()), int(y_test.sum()) == 1327),
         ("test_ID_equals_midterm_index_plus_1", True, historical_match, historical_match),
+        ("V4_training_ID_order_and_CV_folds", True, historical_folds_match, historical_folds_match),
         ("test_AUC", .775, observed["AUC"], abs(observed["AUC"] - .775) <= .001),
         ("CV_mean_AUC", .781, float(cv.mean()), abs(cv.mean() - .781) <= .001),
         ("test_F1_at_0.5", .532, observed["F1-score"], round(observed["F1-score"], 3) == .532),
@@ -89,12 +104,15 @@ def main():
     manifest = dict(evidence, status="complete", acceptance="pass" if all(r["status"] == "pass" for r in rows) else "not_passed",
                     created_at=datetime.now(timezone.utc).isoformat(), python=platform.python_version(),
                     packages={p: importlib.metadata.version(p) for p in packages},
-                    git_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-                    git_dirty=bool(subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=normal"], cwd=ROOT, text=True)),
+                    git_commit=git_commit, git_dirty=git_dirty,
+                    git_state_captured_at="before_run_outputs",
                     data_sha256=sha(DATA_DIR / "default_of_credit_card_clients.csv"),
                     class_weight_algorithm="Original make_model: negative/positive over all 24000 training labels before CV",
                     cv_auc_by_fold=cv.tolist(), historical_indices_sha256=sha(args.midterm_indices) if args.midterm_indices else None,
-                    limitations=["Historical test indices not supplied" ] if historical_match is None else [],
+                    historical_folds_sha256=sha(args.midterm_folds) if args.midterm_folds else None,
+                    historical_source=json.loads(args.midterm_source.read_text()) if args.midterm_source else None,
+                    limitations=(["Historical test indices not supplied"] if historical_match is None else [])
+                    + (["Historical CV folds not supplied"] if historical_folds_match is None else []),
                     usage="Historical reproduction only; must not inform L1 design")
     for folder in (out, result):
         (folder / "run.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
