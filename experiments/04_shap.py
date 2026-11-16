@@ -19,6 +19,11 @@ import xgboost as xgb
 
 from _common import *
 
+train = dev_data()
+y_train = train["default"]
+evaluation = train  # F4 global importance uses training data, not the test set.
+
+
 # 圖上的中文（標題）在 Windows 用微軟正黑體，找不到就退回預設字型
 plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -27,9 +32,9 @@ plt.rcParams["axes.unicode_minus"] = False
 cols = feature_cols()
 model = make_model("XGBoost", cols, y_train, XGB_TUNED).fit(train[cols], y_train)
 
-# 2. 取出前處理後的測試集（Pipeline 的 pre 步驟會做 one-hot 與標準化）
+# 2. 取出前處理後的 L1 訓練集（Pipeline 的 pre 步驟會做 one-hot 與標準化）
 pre, clf = model.named_steps["pre"], model.named_steps["clf"]
-X_test = pre.transform(test[cols])
+X_test = pre.transform(evaluation[cols])
 if hasattr(X_test, "toarray"):  # 若是稀疏矩陣就轉成一般陣列
     X_test = X_test.toarray()
 names = [n.split("__", 1)[-1] for n in pre.get_feature_names_out()]  # 去掉 cat__ / num__ 前綴
@@ -64,7 +69,7 @@ importance = (pd.Series(np.abs(values).mean(axis=0), index=names, name="mean_abs
               .sort_values(ascending=False))
 importance.to_csv(RESULTS / "04_shap_importance.csv", encoding="utf-8-sig")
 
-print("測試集客戶數：", len(test))
+print("L1 訓練集客戶數：", len(evaluation))
 print("平均 |SHAP| 前 10 名：")
 print(importance.head(10).round(4))
 print("圖與表已存到", RESULTS)

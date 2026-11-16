@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import tempfile
 from uuid import uuid4
+from contextvars import ContextVar
 
 import joblib
 import numpy as np
@@ -23,6 +24,14 @@ import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 from .config import ROOT
+
+_SEALED_ACCESS = ContextVar("sealed_artifact_access", default=False)
+
+
+def _guard_sealed(path):
+    parts = Path(path).resolve().parts
+    if any(parts[i:i+2] == ("outputs", "sealed") for i in range(len(parts)-1)) and not _SEALED_ACCESS.get():
+        raise PermissionError("Sealed artifacts may only be read by nested_eval/open_sealed")
 
 
 class IntegrityError(ValueError):
@@ -62,6 +71,7 @@ def content_hash(value):
 
 
 def file_hash(path):
+    _guard_sealed(path)
     digest = hashlib.sha256()
     with Path(path).open("rb") as f:
         for block in iter(lambda: f.read(1024 * 1024), b""):
@@ -76,6 +86,7 @@ def identifier(value):
 
 
 def read_json(path):
+    _guard_sealed(path)
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -157,7 +168,7 @@ class Registry:
         L1-H artifacts additionally declare their separate development holdout.
         """
         identifier(model_id)
-        if level not in {"L0", "L1", "L1-H"}:
+        if level not in {"L0", "L1", "L1-H", "L3"}:
             raise ValueError("C1 model registration requires L0, L1 or L1-H")
         ids = validate_ids(training_ids)
         columns = list(columns)
@@ -337,6 +348,9 @@ class Registry:
 
         path = self.runs / identifier(run_id)
         meta = read_json(path / "run.json")
+        if meta.get("protocol_run"):
+            from ._protocol_runs import load_protocol_run
+            return load_protocol_run(self, run_id, allow_running=allow_running)
         if meta["run_id"] != run_id:
             raise IntegrityError("Run identity mismatch")
         if meta["status"] != "complete" and not (allow_running and meta["status"] == "running"):

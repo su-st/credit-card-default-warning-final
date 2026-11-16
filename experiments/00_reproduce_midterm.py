@@ -14,7 +14,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from _common import CV, data, feature_cols, make_model, metrics, np, pd, train, test, y_train, y_test
+from _common import np, pd
+from src.data import load_data, split, feature_cols
+from src.models import CV, make_model
+from src.evaluate import metrics
+
+# Explicit L0 exception; only this historical entry point uses the old split/model.
+data = load_data()
+train, test = split(data)
+y_train, y_test = train["default"], test["default"]
 import joblib
 from sklearn.model_selection import cross_val_predict, cross_val_score
 from src.config import DATA_DIR, ROOT, XGB_BASELINE

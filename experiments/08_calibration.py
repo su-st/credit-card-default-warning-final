@@ -16,6 +16,12 @@ TODO（余旻恩）
    02_threshold.py 選出的門檻必須重跑，不能沿用
 """
 from _common import *
+
+train, evaluation = dev_holdout()
+y_train, y_evaluation = train["default"], evaluation["default"]
+# L1-H functional development only; do not select settings or report performance.
+print("L1-H 開發資料，非正式效能；僅供功能確認")
+
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import brier_score_loss, roc_auc_score
 
@@ -24,15 +30,15 @@ raw = make_model("XGBoost", cols, y_train, XGB_TUNED).fit(train[cols], y_train)
 cal = CalibratedClassifierCV(make_model("XGBoost", cols, y_train, XGB_TUNED), method="isotonic", cv=CV)
 cal.fit(train[cols], y_train)
 
-probs = {"原始分數": raw.predict_proba(test[cols])[:, 1], "校準後": cal.predict_proba(test[cols])[:, 1]}
+probs = {"原始分數": raw.predict_proba(evaluation[cols])[:, 1], "校準後": cal.predict_proba(evaluation[cols])[:, 1]}
 
 summary, bins = [], []
 edges = np.linspace(0, 1, 11)
 for name, p in probs.items():
-    summary.append({"模型": name, "AUC": roc_auc_score(y_test, p), "Brier 分數（越低越好）": brier_score_loss(y_test, p),
-                    "平均預測值": p.mean(), "實際違約率": y_test.mean()})
+    summary.append({"模型": name, "AUC": roc_auc_score(y_evaluation, p), "Brier 分數（越低越好）": brier_score_loss(y_evaluation, p),
+                    "平均預測值": p.mean(), "實際違約率": y_evaluation.mean()})
     b = pd.cut(p, edges, include_lowest=True)
-    t = pd.DataFrame({"分數區間": b, "p": p, "y": y_test.values}).groupby("分數區間", observed=True)
+    t = pd.DataFrame({"分數區間": b, "p": p, "y": y_evaluation.values}).groupby("分數區間", observed=True)
     t = t.agg(人數=("y", "size"), 平均預測值=("p", "mean"), 實際違約率=("y", "mean")).reset_index()
     t.insert(0, "模型", name)
     bins.append(t)

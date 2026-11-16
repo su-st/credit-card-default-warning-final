@@ -5,8 +5,8 @@ TAIDE 輸出改善前後比較（期末報告用）。
 兩者都用同一套檢查規則（llm/explain.py 的 check_explain、check_care）判斷是否合格。
 
 需要：
-1. Ollama 已開啟，.env 已填 TAIDE_MODEL
-2. 已執行 python -m src.export，產生 outputs/predictions.csv
+1. Ollama 已開啟，由程序環境提供 TAIDE_MODEL（不讀取 .env）
+2. 已執行 python -m src.export，並以 --run-id 指定已完成的 L1-H run
 3. feat/taide 已合併到 main（需要 explain.py 的 generate 與檢查函式）
 
 輸出 outputs/results/10_taide_eval.csv：每位客戶兩種版本的原始輸出與不合格原因。
@@ -20,11 +20,12 @@ TODO（蘇韻蓉）
 """
 import time
 
-from dotenv import load_dotenv
+import argparse
 
 from _common import *
 
-load_dotenv(OUT_DIR.parent / ".env")  # 要在匯入 llm.explain 之前讀，TAIDE_MODEL 才會生效
+from src.registry import Registry
+# Configuration is supplied by the process environment; never read .env.
 
 import requests  # noqa: E402
 
@@ -58,12 +59,14 @@ def old_care(c: dict) -> str:
 
 # ---------- 執行 ----------
 if not explain.TAIDE_MODEL:
-    raise SystemExit("沒有設定 TAIDE_MODEL，請先在 .env 填入（ollama list 顯示的名稱）")
-pred_file = OUT_DIR / "predictions.csv"
-if not pred_file.exists():
-    raise SystemExit("找不到 outputs/predictions.csv，請先執行 python -m src.export")
-
-df = pd.read_csv(pred_file)
+    raise SystemExit("沒有設定 TAIDE_MODEL，請由程序環境提供（ollama list 顯示的名稱）")
+parser = argparse.ArgumentParser()
+parser.add_argument("--run-id", required=True)
+args = parser.parse_args()
+bundle = Registry().load_run(args.run_id)
+if bundle["run"]["level"] != "L1-H":
+    raise PermissionError("TAIDE development evaluation requires a registered L1-H run")
+df = bundle["predictions"]
 sample = df[df["in_list"] == 1].sample(n=N, random_state=RANDOM_STATE)
 rows = []
 start = time.time()

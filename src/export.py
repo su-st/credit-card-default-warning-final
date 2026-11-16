@@ -151,11 +151,8 @@ def main(argv=None):
     data_file = DATA_DIR / "default_of_credit_card_clients.csv"
     if file_hash(data_file) != meta["data_sha256"]:
         raise IntegrityError("Current data file hash differs from the registered model")
-    # C1 uses the existing shared split; C2 migrates this data-access seam to
-    # protocol.dev_holdout. The discarded seed-42 test split is never predicted.
-    from .data import load_data, split
-    development, _ = split(load_data())
-    _, holdout = split(development)
+    from .protocol import dev_holdout
+    _, holdout = dev_holdout()
     bundle = export_run(Run(registry, meta), holdout)
     print(f"已驗證 {bundle['run']['verified_customers']} 位 L1-H 開發客戶；run_id={args.run_id}（非正式結果）")
 
