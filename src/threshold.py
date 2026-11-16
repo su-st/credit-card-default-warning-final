@@ -1,12 +1,8 @@
 """門檻自動選擇。門檻只用訓練集的交叉驗證預測（驗證資料）決定，測試集只用來報告最後結果。"""
-import json
-
 import numpy as np
 import pandas as pd
 
-from .config import LIST_THRESHOLD, OUT_DIR
-
-THRESHOLD_FILE = OUT_DIR / "threshold.json"
+from .config import LIST_THRESHOLD
 GRID = np.round(np.arange(0.05, 0.951, 0.01), 2)
 
 
@@ -48,14 +44,94 @@ def select_threshold(table: pd.DataFrame, rule: str, top_n_rate: float = 0.2, n_
     raise ValueError(f"未知的規則：{rule}")
 
 
-def save_threshold(info: dict):
-    OUT_DIR.mkdir(exist_ok=True)
-    THRESHOLD_FILE.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
+def policy_list(score: pd.Series, record: dict) -> pd.Series:
+    """C1 single-threshold export policy; C2 owns the general Policy interface."""
+    from .registry import validate_ids
+
+    validate_ids(score.index)
+    values = score.to_numpy(dtype=float)
+    if not np.isfinite(values).all() or ((values < 0) | (values > 1)).any():
+        raise ValueError("Invalid risk scores")
+    policy = record["policy"]
+    if policy["kind"] != "single":
+        raise ValueError("C1 export supports only a single-threshold policy")
+    threshold, cap = policy["threshold"], policy["max_list_rate"]
+    if not np.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise ValueError("Invalid threshold")
+    if cap is not None and (not np.isfinite(cap) or not 0 <= cap <= 1):
+        raise ValueError("Invalid list capacity")
+    selected = score >= threshold
+    if cap is not None and selected.sum() > int(np.floor(cap * len(score))):
+        ranked = pd.DataFrame({"score": score, "customer_id": score.index})
+        ranked.index.name = None
+        keep = ranked.loc[selected].sort_values(["score", "customer_id"], ascending=[False, True]).head(int(np.floor(cap * len(score))))
+        selected = pd.Series(score.index.isin(keep.index), index=score.index)
+    return selected.astype(int)
 
 
-def load_threshold() -> tuple[float, str]:
-    """回傳（門檻, 來源說明）。還沒執行 02_threshold.py 時用 config 的備用值。"""
-    if THRESHOLD_FILE.exists():
-        info = json.loads(THRESHOLD_FILE.read_text(encoding="utf-8"))
-        return float(info["threshold"]), f"自動選擇（規則：{info['rule']}）"
-    return LIST_THRESHOLD, "config 備用值（尚未執行 experiments/02_threshold.py）"
+def validate_threshold(info, model_record, *, level, registry):
+    """Check source-level separation and recompute every training-evidence hash."""
+    from .registry import IntegrityError, content_hash
+
+    registry.load_model(model_record)  # checks actual OOF/fold files, not just JSON
+    for key in ("model_id", "model_hash", "params_hash", "features_hash", "training_ids_hash",
+                "seed", "n_splits", "folds_sha256", "oof_sha256"):
+        if info[key] != model_record[key]:
+            raise IntegrityError(f"Threshold {key} mismatch")
+    if info["source_level"] != model_record["level"] or (
+            (level == "L1-H") != (info["source_level"] == "L1-H")):
+        raise IntegrityError("Development holdout policy cannot be mixed with a formal model")
+    expected = content_hash({"policy": info["policy"], "source": {k: info[k] for k in (
+        "model_id", "model_hash", "params_hash", "features_hash", "training_ids_hash",
+        "seed", "n_splits", "folds_sha256", "oof_sha256", "rules_freeze_id", "source_level")}})
+    if info["policy_hash"] != expected or info["policy_id"] != f"single-{expected[:16]}":
+        raise IntegrityError("Policy hash/identity mismatch")
+    if info["rules_freeze_id"] is not None:
+        registry.load_rules(info["rules_freeze_id"])
+    if info["threshold"] != info["policy"]["threshold"] or info["scenario"] != info["policy"]["scenario"]:
+        raise IntegrityError("Threshold policy content mismatch")
+    # Also validate numerical ranges without making any policy choice.
+    policy_list(pd.Series([0.0], index=[1]), info)
+
+
+def save_threshold(info: dict, *, run, model_record):
+    """Bind the supplied selection to its own run; never writes a global file.
+
+    Selection rules/calculations above remain unchanged for L0 and the existing
+    02 analysis. Official cost selection belongs to C3 and frozen rules.
+    """
+    from .registry import IntegrityError, content_hash, write_json
+
+    run._running()
+    if run.meta["model_id"] != model_record["model_id"]:
+        raise IntegrityError("Threshold model differs from run")
+    source = {k: model_record[k] for k in (
+        "model_id", "model_hash", "params_hash", "features_hash", "training_ids_hash",
+        "seed", "n_splits", "folds_sha256", "oof_sha256")}
+    source.update(rules_freeze_id=run.meta["rules_freeze_id"], source_level=model_record["level"])
+    policy = dict(kind="single", threshold=float(info["threshold"]),
+                  max_list_rate=info.get("max_list_rate"), scenario=info.get("assumptions"),
+                  rule=info["rule"], selected_on=info["selected_on"])
+    digest = content_hash({"policy": policy, "source": source})
+    record = dict(info, **source, run_id=run.run_id, policy=policy,
+                  policy_id=f"single-{digest[:16]}", policy_hash=digest, scenario=policy["scenario"])
+    validate_threshold(record, model_record, level=run.meta["level"], registry=run.registry)
+    write_json(run.path / "threshold.json", record)
+    run.update(policy_id=record["policy_id"], policy_hash=digest, scenario=record["scenario"])
+    return record
+
+
+def load_threshold(run_id=None, *, registry=None, allow_fallback=False) -> tuple[float, str]:
+    """Require a completed coherent run. Fallback needs explicit opt-in.
+
+    A corrupt existing run always raises, even with allow_fallback=True.
+    """
+    from .registry import Registry
+
+    if run_id is None:
+        if allow_fallback:
+            return LIST_THRESHOLD, "未使用正式門檻（明確啟用 config 備用值）"
+        raise ValueError("run_id is required; global threshold.json is no longer accepted")
+    bundle = (registry or Registry()).load_run(run_id)
+    info = bundle["threshold"]
+    return float(info["threshold"]), f"{info['source_level']} OOF（run_id={run_id}，規則：{info['rule']}）"
