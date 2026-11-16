@@ -48,6 +48,10 @@ def policy_list(score: pd.Series, record: dict) -> pd.Series:
     """C1 single-threshold export policy; C2 owns the general Policy interface."""
     from .registry import validate_ids
 
+    if "protocol_policy" in record:
+        from .protocol import Policy, apply_policy
+        return apply_policy(score, Policy(**record["protocol_policy"]))[0]
+
     validate_ids(score.index)
     values = score.to_numpy(dtype=float)
     if not np.isfinite(values).all() or ((values < 0) | (values > 1)).any():

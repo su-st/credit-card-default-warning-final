@@ -6,6 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
+from sklearn.base import BaseEstimator
 
 from .config import CAT_COLS, RANDOM_STATE, XGB_BASELINE
 
@@ -30,6 +31,52 @@ def make_model(name: str, cols: list, y_train, xgb_params: dict | None = None) -
         params = dict(XGB_BASELINE if xgb_params is None else xgb_params)
         clf = XGBClassifier(**params, scale_pos_weight=pos_weight(y_train), eval_metric="logloss",
                             random_state=RANDOM_STATE, n_jobs=-1)
+    else:
+        raise ValueError(name)
+    return Pipeline([("pre", pre), ("clf", clf)])
+
+
+class FitWeightedXGBClassifier(XGBClassifier):
+    """C2: compute scale_pos_weight from the labels actually passed to fit."""
+    def fit(self, X, y, **kwargs):
+        self.fit_label_count_ = len(y)
+        self.fit_positive_count_ = int((y == 1).sum())
+        if not 0 < self.fit_positive_count_ < len(y):
+            raise ValueError("Both classes are required to compute class weights")
+        self.set_params(scale_pos_weight=float(pos_weight(y)))
+        return super().fit(X, y, **kwargs)
+
+
+class FeatureSelector(BaseEstimator):
+    """Serializable ColumnTransformer selector fitted inside each pipeline."""
+    def __init__(self, categorical):
+        self.categorical = categorical
+
+    def __call__(self, X):
+        return [c for c in X.columns if (c in CAT_COLS) == self.categorical]
+
+
+def make_fold_model(name, *, params=None):
+    """New pipeline; the historical make_model above remains unchanged."""
+    from .config import XGB_TUNED
+
+    pre = ColumnTransformer([
+        ("cat", OneHotEncoder(handle_unknown="ignore"), FeatureSelector(True)),
+        ("num", StandardScaler(), FeatureSelector(False)),
+    ])
+    params = {} if params is None else dict(params)
+    if name != "XGBoost" and params.get("class_weight", "balanced") != "balanced":
+        raise ValueError("Class weights must be computed from each fit's labels")
+    if name == "XGBoost":
+        if "scale_pos_weight" in params:
+            raise ValueError("Class weight is computed in fit, not supplied by the caller")
+        configured = dict(XGB_TUNED, eval_metric="logloss", random_state=RANDOM_STATE, n_jobs=-1)
+        configured.update(params)
+        clf = FitWeightedXGBClassifier(**configured)
+    elif name == "邏輯迴歸":
+        clf = LogisticRegression(**dict(dict(max_iter=3000, class_weight="balanced"), **params))
+    elif name == "決策樹":
+        clf = DecisionTreeClassifier(**dict(dict(max_depth=4, class_weight="balanced", random_state=RANDOM_STATE), **params))
     else:
         raise ValueError(name)
     return Pipeline([("pre", pre), ("clf", clf)])

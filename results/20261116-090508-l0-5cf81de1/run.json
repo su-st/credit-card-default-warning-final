@@ -1,0 +1,137 @@
+{
+  "run_id": "20261116-090508-l0-5cf81de1",
+  "model_id": "xgb-baseline-sensitive-s42train-l0",
+  "model_hash": "15c1687640f81ca9f8bc01051a91b2be0fcd99b0d7753c5cb47bebb54920c2ee",
+  "params_hash": "06565ec1d38d96f136870317c23b46caef51fed27d32290a535539a2f0d2c159",
+  "features": [
+    "LIMIT_BAL",
+    "PAY_1",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6",
+    "SEX",
+    "EDUCATION",
+    "MARRIAGE",
+    "AGE"
+  ],
+  "level": "L0",
+  "policy_id": "l0-common-0.5-171b8f97416f",
+  "policy_hash": "171b8f97416f052c0e1dc07cf660d023442fbda2632772b0f9abccbc767b8970",
+  "policy": {
+    "kind": "single",
+    "threshold": 0.5,
+    "max_list_rate": null
+  },
+  "oof_f1_threshold": 0.58,
+  "oof_sha256": "e9bf9d8e25096f4c4c5dddf7029b05ec29365c31ae3d7df1f7cdcd00f95b2372",
+  "folds_sha256": "6febb8de71867b65584c19f9c01c42e9bba2e76e01bd01f7cf87bbc5549c8308",
+  "status": "complete",
+  "acceptance": "pass",
+  "created_at": "2026-11-16T09:05:26.417450+00:00",
+  "python": "3.12.3",
+  "packages": {
+    "pandas": "3.1.1",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "xlrd": "2.0.2",
+    "joblib": "1.6.0",
+    "streamlit": "1.67.0",
+    "python-dotenv": "1.2.4",
+    "requests": "2.34.2",
+    "line-bot-sdk": "3.27.0",
+    "shap": "0.54.1",
+    "matplotlib": "3.11.2",
+    "pytest": "9.2.0"
+  },
+  "git_commit": "168da3532f9af53b7210fbb3423a6f6edbd9fafa",
+  "git_dirty": false,
+  "git_state_captured_at": "before_run_outputs",
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "class_weight_algorithm": "Original make_model: negative/positive over all 24000 training labels before CV",
+  "cv_auc_by_fold": [
+    0.783837049879773,
+    0.7799714894315923,
+    0.7666947288447954,
+    0.7891141168374077,
+    0.7855045750922727
+  ],
+  "historical_indices_sha256": "e6723a7b82f09764c0a1d4393ecbf4c162a7fb5354c4f5fb7134123cfd20db48",
+  "historical_folds_sha256": "2ad9e899141f1621e8295d62d806af4c61f740c23ea4ff9db1c4d5a7f092a10f",
+  "historical_source": {
+    "repository": "B11356025/credit-card-default-warning",
+    "commit": "7d3bb3779fe5261a04821e79b1d58400e1295f18",
+    "notebook_path": "AI期中_信用卡違約預警_可行性測試.ipynb",
+    "notebook_blob_sha": "7e307b3d390515897b2550a8f921be70b8a922a0",
+    "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+    "executed_statements": [
+      {
+        "cell_index": 2,
+        "line": 23,
+        "source": "RANDOM_STATE = 42"
+      },
+      {
+        "cell_index": 4,
+        "line": 1,
+        "source": "UCI_ZIP = \"https://archive.ics.uci.edu/static/public/350/default+of+credit+card+clients.zip\""
+      },
+      {
+        "cell_index": 4,
+        "line": 3,
+        "source": "def load_raw():\n    # 1) 同資料夾已有 CSV 或 XLS 就直接讀\n    if os.path.exists(\"default_of_credit_card_clients.csv\"):\n        return pd.read_csv(\"default_of_credit_card_clients.csv\")\n    if os.path.exists(\"default of credit card clients.xls\"):\n        return pd.read_excel(\"default of credit card clients.xls\", header=1)\n    # 2) 否則從 UCI 下載 zip 並解壓縮\n    urllib.request.urlretrieve(UCI_ZIP, \"credit.zip\")\n    with zipfile.ZipFile(\"credit.zip\") as z:\n        z.extractall(\"credit_raw\")\n    for root, _, files in os.walk(\"credit_raw\"):\n        for f in files:\n            if f.endswith(\".xls\"):\n                # XLS 第一列是 X1~X23 代號，第二列才是欄位名稱，所以 header=1\n                return pd.read_excel(os.path.join(root, f), header=1)\n    raise FileNotFoundError(\"找不到資料檔，請手動下載後放在同資料夾\")"
+      },
+      {
+        "cell_index": 4,
+        "line": 20,
+        "source": "raw = load_raw()"
+      },
+      {
+        "cell_index": 4,
+        "line": 22,
+        "source": "df = raw.rename(columns={\"PAY_0\": \"PAY_1\", \"default payment next month\": \"default\"}).drop(columns=[\"ID\"])"
+      },
+      {
+        "cell_index": 13,
+        "line": 1,
+        "source": "def clean(d):\n    d = d.copy()\n    d[\"EDUCATION\"] = d[\"EDUCATION\"].replace({0: 4, 5: 4, 6: 4})\n    d[\"MARRIAGE\"] = d[\"MARRIAGE\"].replace({0: 3})\n    return d"
+      },
+      {
+        "cell_index": 13,
+        "line": 7,
+        "source": "data = clean(df)"
+      },
+      {
+        "cell_index": 13,
+        "line": 18,
+        "source": "train, test = train_test_split(data, test_size=0.2, random_state=RANDOM_STATE, stratify=data[\"default\"])"
+      },
+      {
+        "cell_index": 13,
+        "line": 19,
+        "source": "y_train, y_test = train[\"default\"], test[\"default\"]"
+      },
+      {
+        "cell_index": 13,
+        "line": 37,
+        "source": "CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)"
+      }
+    ],
+    "execution": "Only notebook data loading, cleaning, train_test_split and CV construction/split; no model definition or fit executed"
+  },
+  "limitations": [],
+  "usage": "Historical reproduction only; must not inform L1 design"
+}
