@@ -48,13 +48,12 @@ def test_feature_contracts_of_all_migrated_experiments(small):
 def test_legacy_l0_builder_body_is_unchanged():
     # C0's historical model is kept verbatim, not replaced by a compatibility shim.
     import hashlib
+    import inspect
     import src.models
-    after=Path(src.models.__file__).read_text()
-    def node(source):
-        t=ast.parse(source)
-        return ast.dump(next(n for n in t.body if isinstance(n,ast.FunctionDef) and n.name=='make_model'),include_attributes=False)
-    # Historical AST SHA256 from main 83ff6d5, independent of shallow CI history.
-    assert hashlib.sha256(node(after).encode()).hexdigest()=='0233e98f3941e92bc20d494517f84c908b51485dfc74257f7247023b6091dc98'
+    source=inspect.getsource(src.models.make_model).strip()
+    # Historical source-text SHA256 from main 83ff6d5. Unlike ast.dump, source
+    # text is independent of Python's AST schema and shallow CI history.
+    assert hashlib.sha256(source.encode('utf-8')).hexdigest()=='467245b148016022075a3d70face4801ae2fa0b99aa4f20576aa32f822c899dc'
 
 
 def test_l3_separate_seed_runs_real_retraining_fixed_policy_and_summary(tmp_path,monkeypatch,small):
