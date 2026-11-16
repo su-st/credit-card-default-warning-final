@@ -1,0 +1,91 @@
+{
+  "created_at": "2026-11-16T09:15:41.736770+00:00",
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "description": "V7 pre-G2a timing only; no model or search-count adoption",
+  "finished_at": "2026-11-16T09:19:16.896335+00:00",
+  "fit_seconds": 9.052045609001652,
+  "folds": 5,
+  "git_commit": "fc85c40d35d086a77795f055dc8505d2a67b820b",
+  "git_dirty": false,
+  "level": "L1",
+  "logical_cpus": 32,
+  "machine": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "model_hash": "dbe163e6bdcd09ff9bcdd6fc7cd00ba2036c631d5814c22651ea6a2e095af00e",
+  "model_id": "xgb-v7-ns-s42train-timing",
+  "model_path": "outputs/models/xgb-v7-ns-s42train-timing-dbe163e6bdcd/model.joblib",
+  "model_record": "outputs/models/xgb-v7-ns-s42train-timing-dbe163e6bdcd/model.json",
+  "oof_seconds": 119.76866461899772,
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "39c3f96a76092dfb74b0e79ad8a394a69d59a4c0114449ba7f0de96c8df7cfde",
+  "pilot_n_iter": 2,
+  "protocol_run": true,
+  "purpose": "V7 timing only",
+  "python": "3.12.3",
+  "reference_search_file": "experiments/01_tuning.py",
+  "reference_search_sha256": "6ed84c4d49c75a13cd2a1b8d11a7237cc0e74c10a56286b7fe2fdfd00ab74f84",
+  "rules_freeze_id": null,
+  "run_id": "20261116-091541-e7d69377b8cf",
+  "search_seconds": 86.17146397399483,
+  "search_space": {
+    "colsample_bytree": [
+      0.5,
+      0.7,
+      0.9,
+      1.0
+    ],
+    "gamma": [
+      0,
+      0.5,
+      1,
+      2
+    ],
+    "learning_rate": [
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.1
+    ],
+    "max_depth": [
+      3,
+      4,
+      5,
+      6
+    ],
+    "min_child_weight": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "n_estimators": [
+      200,
+      300,
+      500,
+      800,
+      1000,
+      1500
+    ],
+    "reg_lambda": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "subsample": [
+      0.6,
+      0.8,
+      1.0
+    ]
+  },
+  "seed": 42,
+  "status": "complete",
+  "timing_limitations": "Two parameter draws only; extrapolation excludes threshold scanning, sealing I/O and machine variation. No official search-count decision."
+}
