@@ -31,16 +31,23 @@ SEARCH_SENSITIVE = True  # 搜尋用含敏感屬性的特徵組，與原本 01 �
 # make_model 沒給的參數會用 XGB_TUNED 補上，所以 XGB_BASELINE 必須把其餘參數明確寫成 XGBoost 預設值，
 # 才是期中真正的基準模型（期中的 XGBClassifier 只設了 n_estimators、learning_rate、max_depth）
 BASELINE_FULL = dict(XGB_BASELINE, min_child_weight=1, subsample=1.0, colsample_bytree=1.0, gamma=0.0, reg_lambda=1.0)
-SEARCH_SPACE = {
-    "n_estimators": [200, 300, 500, 800, 1000, 1500],
-    "learning_rate": [0.01, 0.02, 0.03, 0.05, 0.1],
-    "max_depth": [3, 4, 5, 6],
-    "min_child_weight": [1, 3, 5, 10],
-    "subsample": [0.6, 0.8, 1.0],
-    "colsample_bytree": [0.5, 0.7, 0.9, 1.0],
-    "gamma": [0, 0.5, 1, 2],
-    "reg_lambda": [1, 3, 5, 10],
-}
+
+class _Candidates:
+    """候選值清單。寫成 .choice([...]) 是為了讓 tests/test_frozen_rules.py 能用 AST 讀出清單，並與凍結規則比對。"""
+
+    @staticmethod
+    def choice(values):
+        return list(values)
+
+
+cand = _Candidates()
+# 候選值清單（與凍結規則 g2a-20261116 的 search_space 相同）；只沿用清單，抽樣交給 tune_model
+p = dict(n_estimators=cand.choice([200, 300, 500, 800, 1000, 1500]),
+         learning_rate=cand.choice([0.01, 0.02, 0.03, 0.05, 0.1]),
+         max_depth=cand.choice([3, 4, 5, 6]), min_child_weight=cand.choice([1, 3, 5, 10]),
+         subsample=cand.choice([0.6, 0.8, 1.0]), colsample_bytree=cand.choice([0.5, 0.7, 0.9, 1.0]),
+         gamma=cand.choice([0, 0.5, 1, 2]), reg_lambda=cand.choice([1, 3, 5, 10]))
+SEARCH_SPACE = p
 
 parser = argparse.ArgumentParser(description="F1 調參紀錄重現（L1）")
 parser.add_argument("--n-iter", type=int, default=200, help="隨機搜尋組數，預設 200")
