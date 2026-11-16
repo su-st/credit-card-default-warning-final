@@ -18,13 +18,14 @@ TODO（張佩芩）
 4. 報告討論：差距縮小多少、整體 Recall 與名單人數的代價、是否值得，以及合規疑慮
 5. 06_fairness_groups.py 目前門檻寫死 0.5，可改用 load_threshold() 讀自動選出的門檻
 """
+import sys
 from _common import *
 from sklearn.model_selection import cross_val_predict
 
 from src.threshold import GRID, load_threshold
 
 USE_SENSITIVE = False  # 模型本身不使用敏感屬性，只在決定門檻時用族群資訊
-GROUP = "性別"          # 可改成 "年齡層"
+GROUP = sys.argv[1] if len(sys.argv) > 1 else "性別"   # 性別 / 年齡層 / 性別×年齡層
 SEX = {1: "男性", 2: "女性"}
 
 
@@ -33,6 +34,8 @@ def groups_of(d: pd.DataFrame) -> pd.Series:
         return d["SEX"].map(SEX)
     if GROUP == "年齡層":
         return age_group(d["AGE"]).astype(str)
+    if GROUP == "性別×年齡層":
+        return d["SEX"].map(SEX) + "×" + age_group(d["AGE"]).astype(str)
     raise ValueError(GROUP)
 
 
@@ -97,3 +100,43 @@ print("\n測試集各族群：")
 print(detail.round(3).to_string(index=False))
 print("\n測試集整體：")
 print(summary.round(3).to_string(index=False))
+
+# ===== 畫圖：兩種做法各族群 Recall =====
+import os
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
+
+# 找得到中文字型就用；找不到就改用預設字型並提醒，程式不中斷
+FONT_CANDIDATES = [
+    "/mnt/c/Windows/Fonts/msjh.ttc",    # WSL 借用 Windows 字型
+    "C:/Windows/Fonts/msjh.ttc",        # 直接在 Windows 執行
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # 部分 Linux
+]
+font_name = None
+for fp in FONT_CANDIDATES:
+    if os.path.exists(fp):
+        try:
+            font_manager.fontManager.addfont(fp)
+            font_name = font_manager.FontProperties(fname=fp).get_name()
+            break
+        except Exception as e:
+            print(f"提醒：字型 {fp} 載入失敗（{e}），改試下一個")
+if font_name:
+    plt.rcParams["font.family"] = font_name
+else:
+    print("提醒：找不到中文字型，改用預設字型，圖上的中文可能顯示成方塊（數據不受影響）")
+plt.rcParams["axes.unicode_minus"] = False
+
+pivot = detail.pivot(index="族群", columns="做法", values="Recall")[["單一門檻", "族群門檻"]]
+ax = pivot.plot(kind="bar", figsize=(max(6, len(pivot) * 1.2), 4.5), rot=30)
+ax.set_ylabel("Recall（違約者被抓到的比例）")
+ax.set_title(f"各族群 Recall：單一門檻 vs 族群門檻（分組：{GROUP}）")
+ax.set_ylim(0, 1)
+for c in ax.containers:
+    ax.bar_label(c, fmt="%.2f", fontsize=8)
+plt.tight_layout()
+png = RESULTS / f"07_group_threshold_{GROUP}_recall.png"
+plt.savefig(png, dpi=200)
+print("圖已存到", png)
