@@ -25,10 +25,19 @@ LIST_THRESHOLD = 0.5            # 備用值：還沒執行 experiments/02_thresh
 
 # ---------- 門檻自動選擇（experiments/02_threshold.py）----------
 # 規則：「cost」總成本最低、「f1」F1 最高、「top_n」固定名單人數
-THRESHOLD_RULE = "f1"
-# 以下三個是成本假設，數字需要自己訂定並在報告說明依據
+THRESHOLD_RULE = "cost"
+# D2 已決策的情境起始值；正式執行只讀 rules_freeze JSON，不以這裡代替凍結。
 LOSS_PER_DEFAULT = None    # 漏判一位違約者的損失（元）。None 代表用訓練集違約者最近一期帳單的平均
 COST_PER_CONTACT = 50      # 【假設】聯絡一位客戶的成本（元）
 RESCUE_RATE = 0.2          # 【假設】聯絡後成功避免違約的比例
 TOP_N_RATE = 0.2           # 規則為 top_n 時，名單佔全部客戶的比例
-MAX_LIST_RATE = None       # 規則為 cost 時的人力上限：名單最多佔全部客戶的比例，None 代表不限制
+MAX_LIST_RATE = 0.2        # D2 主要名單上限；每批資料均以最終名單套用
+LOSS_RATIO = 0.5           # 情境起始假設，非實際損失率；帳單金額非 EAD
+
+# 供組長建立規則凍結紀錄參考；執行時不默用這些範圍。
+COST_SENSITIVITY = {
+    "max_list_rate": (0.1, 0.2, 0.3),
+    "loss_ratio": (0.5, 0.75, 1.0),
+    "contact_cost": (50, 500, 2000),
+    "rescue_rate": (0.1, 0.2, 0.3),
+}
