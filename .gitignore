@@ -1,5 +1,10 @@
 .env
-outputs/
+# Only leader-approved freeze-record JSON may be shared; all other outputs stay local.
+/outputs/*
+!/outputs/frozen/
+/outputs/frozen/*
+!/outputs/frozen/rules-*.json
+!/outputs/frozen/model-*.json
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
