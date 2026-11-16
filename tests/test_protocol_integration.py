@@ -1,4 +1,4 @@
-"""Integration gates distinguish implemented protocol from pending PR #9."""
+"""Integration gates enforce protocol-only data access after PR #9 migration."""
 import ast
 from copy import deepcopy
 from dataclasses import asdict
@@ -14,12 +14,8 @@ from src.registry import IntegrityError, Registry, content_hash
 from test_protocol import small, rule_fixture
 
 
-def test_migration_gate_lists_only_explicitly_pending_07():
-    findings=p.audit_sources()
-    assert findings
-    assert {row['file'] for row in findings}=={'experiments/07_group_threshold.py'}
-    # This is NOT a G2b pass: python -m src.protocol --check-g2b must remain
-    # nonzero until PR #9 is merged and 07 is actually migrated.
+def test_g2b_migration_gate_has_no_bypasses():
+    assert p.audit_sources() == []
 
 
 def test_new_direct_bypass_is_found_even_with_import_alias(tmp_path):
@@ -33,7 +29,7 @@ def test_new_direct_bypass_is_found_even_with_import_alias(tmp_path):
 
 def test_feature_contracts_of_all_migrated_experiments(small):
     from src.data import feature_cols
-    for script, sensitive_values in [('04_shap.py',[True]),('06_fairness_groups.py',[True,False]),('08_calibration.py',[True])]:
+    for script, sensitive_values in [('04_shap.py',[True]),('06_fairness_groups.py',[True,False]),('07_group_threshold.py',[False]),('08_calibration.py',[True])]:
         source=(Path(__file__).parents[1]/'experiments'/script).read_text()
         tree=ast.parse(source)
         assert not any(isinstance(n,ast.Name) and isinstance(n.ctx,ast.Load) and n.id in {'test','y_test'} for n in ast.walk(tree))
