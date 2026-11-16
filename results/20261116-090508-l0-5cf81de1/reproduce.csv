@@ -1,0 +1,11 @@
+run_id,model_id,policy_id,metric,midterm,reproduced,difference,status
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_rows,6000,6000,0.0,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_defaults,1327,1327,0.0,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_ID_equals_midterm_index_plus_1,True,True,0.0,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,V4_training_ID_order_and_CV_folds,True,True,0.0,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_AUC,0.775,0.775499103300059,0.0004991033000589784,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,CV_mean_AUC,0.781,0.7810243920171682,2.43920171681955e-05,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_F1_at_0.5,0.532,0.5319219318557724,-7.806814422761654e-05,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_Recall_at_0.5,0.606,0.6058779201205727,-0.0001220798794272504,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,test_list_at_0.5,1696,1696,0.0,pass
+20261116-090508-l0-5cf81de1,xgb-baseline-sensitive-s42train-l0,l0-common-0.5-171b8f97416f,OOF_F1_threshold,0.58,0.58,0.0,pass
