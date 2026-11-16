@@ -108,12 +108,25 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
-# 借用 Windows 的中文字型，避免圖上的中文變成方塊
-for fp in ["/mnt/c/Windows/Fonts/msjh.ttc", "/mnt/c/Windows/Fonts/mingliu.ttc"]:
+# 找得到中文字型就用；找不到就改用預設字型並提醒，程式不中斷
+FONT_CANDIDATES = [
+    "/mnt/c/Windows/Fonts/msjh.ttc",    # WSL 借用 Windows 字型
+    "C:/Windows/Fonts/msjh.ttc",        # 直接在 Windows 執行
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # 部分 Linux
+]
+font_name = None
+for fp in FONT_CANDIDATES:
     if os.path.exists(fp):
-        font_manager.fontManager.addfont(fp)
-        plt.rcParams["font.family"] = font_manager.FontProperties(fname=fp).get_name()
-        break
+        try:
+            font_manager.fontManager.addfont(fp)
+            font_name = font_manager.FontProperties(fname=fp).get_name()
+            break
+        except Exception as e:
+            print(f"提醒：字型 {fp} 載入失敗（{e}），改試下一個")
+if font_name:
+    plt.rcParams["font.family"] = font_name
+else:
+    print("提醒：找不到中文字型，改用預設字型，圖上的中文可能顯示成方塊（數據不受影響）")
 plt.rcParams["axes.unicode_minus"] = False
 
 pivot = detail.pivot(index="族群", columns="做法", values="Recall")[["單一門檻", "族群門檻"]]
