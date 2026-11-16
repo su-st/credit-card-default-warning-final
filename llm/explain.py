@@ -102,6 +102,10 @@ def check_care(text: str) -> str:
     bad = [w for w in CARE_BANNED if w in text]
     if bad:
         return "出現禁用字：" + "、".join(bad)
+    # 沒有權威期限、客服聯絡資料或核准條款可供核對，因此拒絕自由生成內容。
+    # 此處是完整模板白名單，不是通用語意驗證器；新增模板須人工審核。
+    if text.strip() != templates.care_message({}):
+        return "非固定模板內容，無法核實期限、聯絡資訊或承諾"
     return ""
 
 
