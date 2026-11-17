@@ -14,6 +14,8 @@ import pandas as pd
 from .registry import (Run, IntegrityError, content_hash, file_hash, identifier,
                        read_json, write_json)
 
+from .git_state import git_dirty
+
 _OPENING = ContextVar("opening_nested_seal", default=None)
 
 
@@ -23,7 +25,7 @@ def _metadata(level, description, run_id, **kwargs):
     return dict(run_id=run_id, level=level, description=description, status="running",
         protocol_run=True, created_at=datetime.now(timezone.utc).isoformat(),
         git_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
-        git_dirty=bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True)),
+        git_dirty=git_dirty(root),
         python=platform.python_version(), packages={name: importlib.metadata.version(name)
             for name in ("numpy", "pandas", "scikit-learn", "xgboost", "joblib", "pytest")}, **kwargs)
 
