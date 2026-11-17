@@ -1,0 +1,36 @@
+{
+  "created_at": "2026-11-17T05:16:07.361879+00:00",
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "description": "D2 敏感度情境: scenario assumptions, not final performance",
+  "finished_at": "2026-11-17T05:16:07.459145+00:00",
+  "git_commit": "05d2c9376d18080628a3ab7a535ad62a26ef3bd7",
+  "git_dirty": false,
+  "level": "L1",
+  "model_hash": "a411439027bf773e297fc256a8b08b1ae9031af8987df9f3a41309e652d1ecbf",
+  "model_id": "xgb-m1-ns-873afce04e84",
+  "model_path": "outputs/models/xgb-m1-ns-873afce04e84-a411439027bf/model.joblib",
+  "model_record": "outputs/models/xgb-m1-ns-873afce04e84-a411439027bf/model.json",
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "cb4921d3383ba6c914fc1bf4632e275e9c4f4cff7e21a8bea8ed2d192e0b8366",
+  "policy_hash": "ad37260d3df7a4028fb3793861cd1d55d2e9a728c4f8198c5c1aee45abf80b64",
+  "policy_id": "single-ad37260d3df7a402",
+  "protocol_run": true,
+  "python": "3.12.3",
+  "rules_freeze_id": "g2a-20261116",
+  "rules_freeze_sha256": "094f874a8096ef3c4c8db0d51b9e0fba2d356a41b9c67db6531a1d3b59aaf95b",
+  "run_id": "20261117-051607-e4e89373ff6a",
+  "scenario": {
+    "contact_cost": 500,
+    "loss_ratio": 0.75,
+    "max_list_rate": 0.3,
+    "rescue_rate": 0.2
+  },
+  "status": "complete"
+}
