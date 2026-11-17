@@ -76,7 +76,11 @@ CARE_QUALITY_RULES = (
     ('威脅或後果', re.compile(
         r'凍結|停卡|停用(?:信用卡|帳戶)|法律|法務|催收|催繳|提告|訴訟|強制執行|扣押|限制(?:交易|使用)')),
 )
-CARE_CHINESE_NUMBER = re.compile(rf'[{_CARE_DIGITS}]{{2,}}|[{_CARE_DIGITS}]+(?:元|塊)')
+# Mask idioms only for number/date checks; explicit clock contexts stay visible.
+CARE_NUMBER_IDIOM = re.compile(
+    rf'(?<![\d{_CARE_DIGITS}])(?:萬一|千萬|一點(?!鐘|整|半|前|後|到|至)|一下|一些|一起|一直|一同)(?![\d{_CARE_DIGITS}])')
+CARE_CHINESE_NUMBER = re.compile(
+    rf'[{_CARE_DIGITS}]{{3,}}|[{_CARE_DIGITS}]+\s*(?:元|塊|月|日|天|號|期|次|筆|%|年|週|周|小時|分鐘|分|秒|人|個|件|成|倍)')
 EXPLAIN_UNSUPPORTED_WORDING = re.compile(
     r'風險\s*(?:等級|程度)?\s*(?:為|是|偏|較)?\s*[高中低]|違約機率|主要原因')
 FACTOR_NOTE = '模型判斷依據，不代表違約原因'
@@ -123,12 +127,14 @@ def quality_check(kind: str, text: str, facts: str) -> str:
     if kind == 'care':
         # Width normalization is for draft checks only, not policy or hashes.
         normalized = unicodedata.normalize('NFKC', text)
+        numeric_text = CARE_NUMBER_IDIOM.sub(lambda match: ' ' * len(match[0]), normalized)
         for category, pattern in CARE_QUALITY_RULES:
-            if pattern.search(normalized):
+            candidate = numeric_text if category == '具體日期或期限' else normalized
+            if pattern.search(candidate):
                 return f'出現{category}'
         if _numbers(text):
             return '出現數字：' + '、'.join(sorted(_numbers(text)))
-        if CARE_CHINESE_NUMBER.search(normalized):
+        if CARE_CHINESE_NUMBER.search(numeric_text):
             return '出現中文數字'
         bad = [word for word in CARE_BANNED if word in text]
         if bad:

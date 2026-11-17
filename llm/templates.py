@@ -29,7 +29,7 @@ def risk_explanation(c: dict) -> str:
     """給行員看的風險說明。c 為 predictions.csv 的一列。"""
     status = list_status(c)
     factors = '、'.join(f for f in [c.get('factor_1'), c.get('factor_2'), c.get('factor_3')] if isinstance(f, str) and f)
-    return (f"客戶 {c['customer_id']}：{status}；風險分數 {c['risk_score']:.2f}。"
+    return (f"客戶 {c['customer_id']}：{status}，風險分數 {c['risk_score']:.2f}。"
             f"風險因素：{factors or '無明顯單一因素'}。模型判斷依據，不代表違約原因。")
 
 

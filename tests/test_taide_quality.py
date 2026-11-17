@@ -218,3 +218,36 @@ def test_category_rules_reject_new_phrasings_and_generation(category,text,monkey
 def test_category_rules_preserve_safe_generic_contact_and_fixed_template():
     for text in [DRAFT,templates.care_message({}), '若有需要，歡迎透過客服專線與我們聯繫。']:
         assert explain.quality_check('care',text,'')==''
+
+
+@pytest.mark.parametrize('text', [
+    '您好，提醒您留意本期帳單的繳款期限，萬一繳款有困難，歡迎與我們聯繫。',
+    '您好，請多留意一點本期帳單的繳款期限，如有需要我們很樂意協助。',
+    '您好，千萬別忘了本期帳單的繳款期限，有需要隨時與我們聯繫。',
+    '您好，我們一起了解一下帳單，一直都很樂意與您一同討論一些還款方式。',
+])
+def test_common_chinese_idioms_are_safe_drafts_only(text,monkeypatch):
+    assert explain.quality_check('care',text,'')==''
+    monkeypatch.setattr(explain,'TAIDE_MODEL','fake')
+    monkeypatch.setattr(explain,'_chat',Mock(return_value=text))
+    assert explain.generate('care',CUSTOMER)['text']==text
+    assert explain.check_care(text)
+
+
+@pytest.mark.parametrize('text', [
+    '請支付一元。', '請支付兩塊。', '請於三月辦理。', '請於五日處理。',
+    '請於兩天內處理。', '請於六號處理。', '請分兩期處理。',
+    '請操作三次。', '請處理兩筆。', '請支付五%。', '請聯絡零八零零。',
+    '請於一點鐘前處理。', '請於一點前處理。',
+    '萬一需要請在三月處理。', '千萬留意，這項服務免費。',
+    '我們一起處理，否則將停卡。', '先了解一下，請寄信至 help@example.org。',
+    '請於十一點前處理。', '請使用萬一二三。', '請支付三千萬元。',
+])
+def test_numeric_units_and_safety_rules_survive_idiom_exceptions(text):
+    assert explain.quality_check('care',text,'')
+
+
+def test_risk_explanation_uses_comma_between_status_and_score():
+    text=templates.risk_explanation(CUSTOMER)
+    assert '；' not in text
+    assert '，風險分數' in text
