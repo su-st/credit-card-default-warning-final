@@ -2,12 +2,15 @@
 
 負責人：蔡翌佳｜分支：feat/fairness-page-v2
 本頁只呈現共用評估結果，不自行計算公平性指標或讀取資料檔。
-C6 串接後，將已驗證的交接資料、run metadata 與共用評估結果傳入 render。
+透過 C6 共用資料介面取得已驗證的政策，再由 protocol.evaluate 計算。
 T-蔡2 的正式圖表及雙模型比較另行完成。
 """
 
 import pandas as pd
 import streamlit as st
+
+from app.data import BACKTEST, load_platform_run, page_data
+from src import protocol as p
 
 
 GROUPS = ("性別", "年齡層", "性別×年齡層", "教育程度", "婚姻狀況")
@@ -17,10 +20,7 @@ GROUP_COLUMNS = (
     "FPR 下限", "FPR 上限", "小樣本",
 )
 GAP_COLUMNS = ("分組方式", "EO 差距", "FPR 差距")
-DISPLAY_COLUMNS = (
-    "族群", "總人數", "違約人數", "未違約人數", "Recall",
-    "Recall 95% 信賴區間", "FNR", "FPR", "FPR 95% 信賴區間", "樣本提醒",
-)
+
 
 
 def _format_rate(value):
@@ -94,34 +94,74 @@ def _show_results(groups, gaps, group):
     st.bar_chart(t.set_index("族群")[["Recall", "FPR"]], stack=False)
 
 
-def render(df, meta, *, evaluation=None):
-    """T-蔡1 的暫時呈現介面；C6 尚未接上時不顯示舊資料指標。
+def _evaluate_backtest(df, meta):
+    """使用 C6 已驗證的同一 run 與完整政策，不直接讀取交接檔。"""
+    # page_data 目前只傳遞政策摘要；完整政策必須透過共用介面取得。
+    bundle = load_platform_run(meta["run_id"])
+    verified_df, verified_meta = page_data(bundle, BACKTEST)
+    keys = ("run_id", "model_id", "policy_id", "level", "predictions_sha256")
+    if any(meta.get(key) != verified_meta[key] for key in keys):
+        raise ValueError("公平性頁面與已驗證 run 的識別不一致")
+    if not df.equals(verified_df):
+        raise ValueError("公平性頁面資料與已驗證交接資料不一致")
 
-    evaluation 應為共用 evaluate() 回傳的 dict，由整合層提供；
-    不在本頁載入交接檔、推測政策或重算指標。
-    """
-    if meta.get("mode") != "歷史回測":
+    threshold = bundle["policy"]
+    run = bundle["run"]
+    if threshold.get("source_level") != meta["level"]:
+        raise ValueError("政策來源資料層級不一致")
+    if any(threshold[key] != run[key] for key in ("run_id", "model_id", "policy_id", "policy_hash")):
+        raise ValueError("政策與已驗證 run 的識別或雜湊不一致")
+
+    if "protocol_policy" in threshold:
+        policy = p.Policy(**threshold["protocol_policy"])
+        if policy.policy_id != meta["policy_id"] or policy.policy_hash != threshold["policy_hash"]:
+            raise ValueError("政策識別或雜湊不一致")
+    else:
+        # C1 格式的政策 ID/hash 包含訓練來源證據，已由
+        # load_platform_run -> Registry.load_run -> validate_threshold 驗證。
+        # 使用其原有單一門檻及上限建立 C2 評估物件，不重新選擇政策，
+        # 也不將轉換後的 C2 ID 誤認為登錄的 C1 政策 ID。
+        legacy = threshold["policy"]
+        if legacy["kind"] != "single" or legacy["threshold"] != threshold["threshold"]:
+            raise ValueError("不支援或不一致的 C1 政策")
+        policy = p.Policy.single(legacy["threshold"], legacy["max_list_rate"])
+
+    frame = verified_df.set_index("customer_id", verify_integrity=True)
+    groups = {
+        "性別": frame["sex"],
+        "年齡層": frame["age_group"],
+        "性別×年齡層": frame["sex"].astype("string") + " × " + frame["age_group"].astype("string"),
+        "教育程度": frame["education"],
+        "婚姻狀況": frame["marriage"],
+    }
+    if any(series.isna().any() for series in groups.values()):
+        raise ValueError("交接資料存在缺失族群標籤，請確認共用分組規則")
+    evaluation = p.evaluate(frame["actual_default"], score=frame["risk_score"],
+                            pred=frame["in_list"], policy=policy, groups=groups)
+    # evaluate 會驗證既有名單與政策一致。頁面只呈現族群表和差距；
+    # 原始 model_id / run_id / policy_id 仍由 C6 側欄提供。
+    return {"groups": evaluation["groups"], "gaps": evaluation["gaps"]}
+
+
+def render(df, meta):
+    """C6 平台入口：模擬模式不讀取政策或計算回測指標。"""
+    if meta.get("mode") != BACKTEST:
         st.info("公平性監控僅在歷史回測模式顯示；模擬資料沒有實際標籤，無法計算族群錯誤率。")
         return
-
     st.header("公平性監控")
-    # C6 在模擬模式會移除標籤。沒有完整實際標籤就提早返回，
-    # 即使呼叫端傳入回測結果，也不能在這個模式顯示。
-    label = next((col for col in ("actual_default", "default") if col in df.columns), None)
-    if label is None or df.empty or df[label].isna().any():
-        st.info("新資料預警（模擬）或尚無完整實際違約標籤：無法計算公平性回測指標。待取得實際結果後，才能進行族群比較。")
+    if df.empty or "actual_default" not in df or not df["actual_default"].isin([0, 1]).all():
+        st.info("尚無完整實際違約標籤，無法計算公平性回測指標。")
         return
-
-    # 此為 T-蔡1 開發版。正式資料的載入與一致性驗證由 C6 負責。
     if meta.get("level") != "L1-H":
-        st.info("尚未接入 L1-H 開發資料。為避免顯示舊版或未確認來源的結果，暫不顯示回測指標。")
+        st.info("目前僅支援 L1-H 開發資料，正式資料尚未開放。")
         return
 
     st.caption("歷史回測｜L1-H 開發資料，非正式結果；僅供介面與功能測試。")
+    try:
+        evaluation = _evaluate_backtest(df, meta)
+    except Exception as exc:
+        st.error(f"公平性資料驗證或評估失敗，請回報組長：{exc}")
+        return
     _show_explanation()
     group = st.selectbox("分組方式", GROUPS)
-    if evaluation is None:
-        st.info("尚未接入共用評估結果；開發資料數字將在資料串接完成後顯示。")
-        st.dataframe(pd.DataFrame(columns=DISPLAY_COLUMNS), hide_index=True, width="stretch")
-        return
     _show_results(evaluation["groups"], evaluation["gaps"], group)
