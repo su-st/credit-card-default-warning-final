@@ -8,7 +8,7 @@ F7 機率校準評估（資料層級 L1：24,000 筆訓練集，seed 42，完全
 做的事：
 1. 用 M1-NS（XGB_TUNED、不含敏感屬性）取得 24,000 筆的 OOF 風險分數
 2. crossfit_calibrate：5 折交叉擬合 isotonic 校準，每折用其他 4 折擬合校準器、再套用到該折，
-   擬合資料與評估資料分開
+   擬合資料與評估資料分開，並記錄每折校準器的來源（calibration_folds.csv）
 3. calibration_report：比較校準前後的 Brier 分數與校準曲線，同時列 AUC 與分數的不同值個數
 4. rank_change：isotonic 校準會產生同分，檢查校準後各名單比例與原本名單的重疊比例
 5. 這是 L1 的開發評估，正式數字以凍結後的 L2 為準
@@ -55,7 +55,8 @@ factory = lambda: make_model("XGBoost", params=dict(XGB_TUNED))
 oof = oof_predict(factory, X, y, folds=FOLDS, seed=SEED)
 
 # ---------- 2. 交叉擬合校準：擬合與評估用不同的折 ----------
-calibrated, _provenance = crossfit_calibrate(y, oof, folds=FOLDS, seed=SEED)
+calibrated, provenance = crossfit_calibrate(y, oof, folds=FOLDS, seed=SEED)
+run.save_csv("calibration_folds", provenance)  # 規格 4.5.7：記錄每折校準器的來源
 
 # ---------- 3. 校準前後比較 ----------
 versions = {"原始風險分數": oof, "校準後分數（交叉擬合 isotonic）": calibrated}
