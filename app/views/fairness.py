@@ -100,6 +100,10 @@ def render(df, meta, *, evaluation=None):
     evaluation 應為共用 evaluate() 回傳的 dict，由整合層提供；
     不在本頁載入交接檔、推測政策或重算指標。
     """
+    if meta.get("mode") != "歷史回測":
+        st.info("公平性監控僅在歷史回測模式顯示；模擬資料沒有實際標籤，無法計算族群錯誤率。")
+        return
+
     st.header("公平性監控")
     # C6 在模擬模式會移除標籤。沒有完整實際標籤就提早返回，
     # 即使呼叫端傳入回測結果，也不能在這個模式顯示。

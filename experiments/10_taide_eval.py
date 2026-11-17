@@ -2,7 +2,7 @@
 TAIDE 輸出改善前後比較（期末報告用）。
 改善前：期中框架原本的提示詞，沒有範例、沒有檢查
 改善後：llm/explain.py 目前的版本（範例、禁止數字與署名、程式檢查）
-兩者都用同一套檢查規則（llm/explain.py 的 check_explain、check_care）判斷是否合格。
+兩者都用同一套 quality_check 品質規則判斷是否合格；改善後原始訊息另記可否直接發送（內容政策）。
 
 需要：
 1. Ollama 已開啟，由程序環境提供 TAIDE_MODEL（不讀取 .env）
@@ -77,10 +77,11 @@ for i, (_, s) in enumerate(sample.iterrows(), 1):
     new_e, new_m = explain.generate("explain", c), explain.generate("care", c)
     rows.append({
         "customer_id": c["customer_id"],
-        "改善前_說明": old_e, "改善前_說明_不合格原因": explain.check_explain(old_e, facts),
-        "改善前_訊息": old_m, "改善前_訊息_不合格原因": explain.check_care(old_m),
-        "改善後_說明": new_e["raw"], "改善後_說明_不合格原因": new_e["reason"],
-        "改善後_訊息": new_m["raw"], "改善後_訊息_不合格原因": new_m["reason"],
+        "改善前_說明": old_e, "改善前_說明_不合格原因": explain.quality_check("explain", old_e, facts),
+        "改善前_訊息": old_m, "改善前_訊息_不合格原因": explain.quality_check("care", old_m, facts),
+        "改善後_說明": new_e["raw"], "改善後_說明_不合格原因": explain.quality_check("explain", new_e["raw"], facts),
+        "改善後_訊息": new_m["raw"], "改善後_訊息_不合格原因": explain.quality_check("care", new_m["raw"], facts),
+        "可否直接發送": explain.check_care(new_m["raw"]) == "",
         "人工判讀": "",
     })
     print(f"{i}/{N} 完成（{time.time() - start:.0f} 秒）")

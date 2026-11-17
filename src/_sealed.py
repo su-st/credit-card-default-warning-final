@@ -48,6 +48,11 @@ def _sealed_folders(registry, rules_id):
     return completed
 
 
+def _manifest_key(path, folder):
+    """Store portable relative keys; POSIX spelling matches existing Linux seals."""
+    return path.relative_to(folder).as_posix()
+
+
 def seal_nested(rules_freeze_id):
     from . import protocol as p
     registry = p._registry()
@@ -101,7 +106,7 @@ def seal_nested(rules_freeze_id):
                 write_json(fold_path / "model-policy.json", meta)
                 fold_metadata.append(meta)
                 for child in fold_path.iterdir():
-                    files[str(child.relative_to(folder))] = file_hash(child)
+                    files[_manifest_key(child, folder)] = file_hash(child)
                 # Never print outer metrics or scores, including in verbose search output.
                 print(f"outer fold {fold}: {time.perf_counter()-start:.2f}s", flush=True)
             assignments = pd.DataFrame({"customer_id": data.index, "fold": assignment.to_numpy()})
