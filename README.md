@@ -37,6 +37,7 @@ Windows（cmd）：
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 copy .env.example .env
 ```
 
@@ -46,8 +47,11 @@ Mac、Linux 或 WSL（Ubuntu）：
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 cp .env.example .env
 ```
+
+執行紀錄會記錄 `pytest` 版本，因此必須安裝 `requirements-dev.txt` 中的固定版本，即使只是執行分析也需要安裝。
 
 啟用成功時，終端機開頭會出現 `(.venv)`。**之後每次打開專案，都要先執行第二行啟用虛擬環境。**
 

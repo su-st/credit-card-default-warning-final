@@ -158,7 +158,7 @@ class Registry:
         return path
 
     def relative(self, path):
-        return str(Path(path).relative_to(self.root))
+        return Path(path).relative_to(self.root).as_posix()
 
     def register_model(self, model_id, model, *, columns, training_ids, oof, folds,
                        level, data_sha256, class_weight_algorithm, prediction_ids=None,
