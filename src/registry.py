@@ -261,7 +261,9 @@ class Registry:
         if rules["rules_freeze_id"] != rules_freeze_id:
             raise IntegrityError("Rules freeze identity mismatch")
         if file_hash(self.root / "docs" / "frozen_rules.md") != rules["markdown_sha256"]:
-            raise IntegrityError("Frozen Markdown hash mismatch")
+            raise IntegrityError(
+                "Frozen Markdown hash mismatch. Possible Windows line-ending conversion; "
+                "see README.md「Windows 使用者」for recovery steps.")
         return rules
 
     def frozen_entry(self, model_freeze_id, entry):

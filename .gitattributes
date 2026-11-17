@@ -1,0 +1,4 @@
+* text=auto eol=lf
+data/*.csv text eol=lf
+docs/frozen_rules.md text eol=lf
+outputs/frozen/*.json text eol=lf
