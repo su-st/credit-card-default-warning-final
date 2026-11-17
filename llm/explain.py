@@ -23,16 +23,18 @@ MAX_CHARS = 120  # 提示詞要求 80 字，檢查時保留一點彈性
 
 # ---------- 提示詞 ----------
 EXPLAIN_SYSTEM = (
-    "你是銀行信用卡風控助理，負責向行員說明客戶為何被列入關懷名單。"
+    "你是銀行信用卡風控助理，負責向行員說明本期預警名單與模型風險因素。"
     "規則：用繁體中文直接說明，不要問候、道歉或客套。最多兩句，80 字以內。"
-    "只能使用資料裡的數字與事實，不可以加入其他數字、日期或自行推測。"
-    "資料裡列出的因素都是讓風險升高的原因，請照原文引用，不要改寫成其他意思。"
-    "不要自行評論金額高低或補充解釋，例如「金額較高」「紀錄不佳」，只要列出因素。"
+    "只能使用資料裡的名單狀態、排名、分數與事實，不可以加入其他數字、日期或自行推測。"
+    "不得用分數高低另分高中低等級，不得更改資料提供的名單狀態。"
+    "因素是模型判斷依據，不代表違約原因；只稱為風險因素，不把關聯描述成因果。"
+    "說明必須註明：模型判斷依據，不代表違約原因。"
+    "不要自行評論金額高低或補充因果解釋，只列出資料提供的因素。"
 )
 EXPLAIN_EXAMPLE = (
-    "資料：風險等級高（分數 0.85）。推高風險的主要因素：9 月延遲繳款 2 個月、8 月延遲繳款 2 個月、信用額度 50,000 元。",
-    "這位客戶風險等級高（分數 0.85），主要原因是 9 月延遲繳款 2 個月、8 月延遲繳款 2 個月，"
-    "另外信用額度 50,000 元也推高了風險，建議優先關懷。",
+    "資料：列入本期預警名單（風險排名第 12 名）。風險分數 0.85。風險因素：9 月延遲繳款 2 個月。",
+    "這位客戶列入本期預警名單（風險排名第 12 名），風險因素為9 月延遲繳款 2 個月。"
+    "模型判斷依據，不代表違約原因。",
 )
 
 CARE_SYSTEM = (
@@ -48,6 +50,17 @@ CARE_EXAMPLE = (
     "我們會協助您了解可行的還款方式。",
 )
 CARE_BANNED = ["違約", "風險", "分數", "模型", "名單", "TAIDE", "人工智慧"]
+
+# C5 leader-approved draft quality vocabulary, separate from the send whitelist.
+CARE_QUALITY_DATES = ('今天', '明天', '後天', '今晚', '明早', '本週', '下週', '本月', '月底', '月初', '中午')
+CARE_QUALITY_PROMISES = ('保證', '免息', '核准', '凍結', '停卡')
+CARE_QUALITY_LINK = re.compile(r'https?://|www\.', re.IGNORECASE)
+CARE_CHINESE_NUMBER = re.compile(
+    r'[零〇一二兩三四五六七八九十百千萬億壹貳參肆伍陸柒捌玖拾佰仟]{2,}'
+    r'|[零〇一二兩三四五六七八九十百千萬億]+(?:年|月|日|天|點|時|分|元|塊)')
+EXPLAIN_UNSUPPORTED_WORDING = re.compile(
+    r'風險\s*(?:等級|程度)?\s*(?:為|是|偏|較)?\s*[高中低]|違約機率|主要原因')
+FACTOR_NOTE = '模型判斷依據，不代表違約原因'
 
 
 # ---------- 呼叫 TAIDE ----------
@@ -80,16 +93,42 @@ def _numbers(text: str) -> set:
     return {n.replace(",", "") for n in re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?", text)}
 
 
-def check_explain(text: str, facts: str) -> str:
-    """回傳不合格的原因，空字串代表通過。"""
-    if not text:
-        return "沒有輸出"
+def quality_check(kind: str, text: str, facts: str) -> str:
+    """Check draft quality only; an empty reason never authorizes sending."""
+    if kind not in ('explain', 'care'):
+        raise ValueError('kind must be explain or care')
+    if not text or not text.strip():
+        return '沒有輸出'
     if len(text) > MAX_CHARS:
-        return f"超過字數（{len(text)} 字）"
-    extra = _numbers(text) - _numbers(facts)
-    if extra:
-        return "出現資料以外的數字：" + "、".join(sorted(extra))
-    return ""
+        return f'超過字數（{len(text)} 字）'
+    if kind == 'care':
+        if _numbers(text):
+            return '出現數字：' + '、'.join(sorted(_numbers(text)))
+        if CARE_CHINESE_NUMBER.search(text):
+            return '出現中文數字'
+        if CARE_QUALITY_LINK.search(text):
+            return '出現未核實的連結'
+        dates = [word for word in CARE_QUALITY_DATES if word in text]
+        if dates:
+            return '出現未核實的日期用語：' + '、'.join(dates)
+        promises = [word for word in CARE_QUALITY_PROMISES if word in text]
+        if promises:
+            return '出現未核實的承諾或威嚇用語：' + '、'.join(promises)
+        bad = [word for word in CARE_BANNED if word in text]
+        if bad:
+            return '出現禁用字：' + '、'.join(bad)
+    else:
+        if EXPLAIN_UNSUPPORTED_WORDING.search(text):
+            return '使用固定風險分級或不適當用詞'
+        extra = _numbers(text) - _numbers(facts)
+        if extra:
+            return '出現資料以外的數字：' + '、'.join(sorted(extra))
+    return ''
+
+
+def check_explain(text: str, facts: str) -> str:
+    """Compatibility entry point for staff draft quality checks."""
+    return quality_check('explain', text, facts)
 
 
 def check_care(text: str) -> str:
@@ -115,10 +154,10 @@ def _factors(c: dict) -> list:
 
 
 def _facts(c: dict) -> str:
-    s = c["risk_score"]
-    level = "高" if s >= 0.7 else ("中" if s >= 0.5 else "低")
-    factors = "、".join(_factors(c)) or "無明顯單一因素"
-    return f"風險等級{level}（分數 {s:.2f}）。推高風險的主要因素：{factors}。"
+    status = templates.list_status(c)
+    factors = '、'.join(_factors(c)) or '無明顯單一因素'
+    return (f"{status}。風險分數 {c['risk_score']:.2f}。風險因素：{factors}。"
+            '模型判斷依據，不代表違約原因。')
 
 
 def generate(kind: str, c: dict) -> dict:
@@ -126,6 +165,8 @@ def generate(kind: str, c: dict) -> dict:
     kind 為 "explain" 或 "care"。
     回傳 {"text": 最後使用的文字, "how": 產生方式, "raw": TAIDE 原始輸出, "reason": 不合格原因}
     """
+    if kind not in ("explain", "care"):
+        raise ValueError("kind must be explain or care")
     fallback = templates.risk_explanation(c) if kind == "explain" else templates.care_message(c)
     if not TAIDE_MODEL:
         return {"text": fallback, "how": "固定句型（未設定 TAIDE_MODEL）", "raw": "", "reason": "未設定模型"}
@@ -133,17 +174,21 @@ def generate(kind: str, c: dict) -> dict:
         if kind == "explain":
             facts = _facts(c)
             raw = _chat(EXPLAIN_SYSTEM, EXPLAIN_EXAMPLE, "資料：" + facts)
-            reason = check_explain(raw, facts)
+            reason = quality_check("explain", raw, facts)
         else:
             raw = _chat(CARE_SYSTEM, CARE_EXAMPLE, "請寫一則關懷訊息。")
-            reason = check_care(raw)
+            reason = quality_check("care", raw, "")
     except Exception as e:  # 模型沒開或逾時
         print("TAIDE 呼叫失敗，改用固定句型：", e)
         return {"text": fallback, "how": "固定句型（TAIDE 呼叫失敗）", "raw": "", "reason": str(e)}
+    text = raw
+    if not reason and kind == "explain" and FACTOR_NOTE not in text:
+        text = text.rstrip("。") + "。" + FACTOR_NOTE + "。"
+        reason = quality_check(kind, text, facts)
     if reason:
         print(f"TAIDE 輸出未通過檢查（{reason}），改用固定句型。原始輸出：{raw}")
         return {"text": fallback, "how": f"固定句型（TAIDE 輸出{reason}）", "raw": raw, "reason": reason}
-    return {"text": raw, "how": "TAIDE", "raw": raw, "reason": ""}
+    return {"text": text, "how": "TAIDE", "raw": raw, "reason": ""}
 
 
 def explain(c: dict) -> tuple[str, str]:

@@ -1,12 +1,36 @@
 """固定句型（TAIDE 無法使用時的備案），也作為 TAIDE 提示詞的範例。"""
 
 
+def list_status(c: dict) -> str:
+    """Describe the handoff policy, never infer a grade from risk_score.
+
+    A row does not contain the list size. Show it only when the caller supplies
+    list_count; never invent a population total from the customer's rank.
+    """
+    import math
+    from numbers import Real
+
+    selected, rank = c['in_list'], c['risk_rank']
+    if selected not in (0, 1):
+        raise ValueError('in_list must be 0 or 1')
+    if isinstance(rank, bool) or not isinstance(rank, Real) or not math.isfinite(rank) or rank < 1 or int(rank) != rank:
+        raise ValueError('risk_rank must be a positive integer')
+    if not selected:
+        return '未列入本期預警名單'
+    total = c.get('list_count')
+    if total is None:
+        return f'列入本期預警名單（風險排名第 {int(rank)} 名）'
+    if isinstance(total, bool) or not isinstance(total, Real) or not math.isfinite(total) or total < 1 or int(total) != total:
+        raise ValueError('list_count must be a positive integer when supplied')
+    return f'列入本期預警名單（風險排名第 {int(rank)} 名，名單共 {int(total)} 人）'
+
+
 def risk_explanation(c: dict) -> str:
     """給行員看的風險說明。c 為 predictions.csv 的一列。"""
-    level = "高" if c["risk_score"] >= 0.7 else ("中" if c["risk_score"] >= 0.5 else "低")
-    factors = "、".join(f for f in [c.get("factor_1"), c.get("factor_2"), c.get("factor_3")] if isinstance(f, str) and f)
-    return (f"客戶 {c['customer_id']} 的違約風險為{level}（分數 {c['risk_score']:.2f}）。"
-            f"模型判斷的主要原因是{factors or '無明顯單一因素'}。建議優先關懷並確認近期繳款安排。")
+    status = list_status(c)
+    factors = '、'.join(f for f in [c.get('factor_1'), c.get('factor_2'), c.get('factor_3')] if isinstance(f, str) and f)
+    return (f"客戶 {c['customer_id']}：{status}；風險分數 {c['risk_score']:.2f}。"
+            f"風險因素：{factors or '無明顯單一因素'}。模型判斷依據，不代表違約原因。")
 
 
 def care_message(c: dict) -> str:
