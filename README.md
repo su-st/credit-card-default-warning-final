@@ -72,6 +72,23 @@ cp .env.example .env
 通常是防毒軟體擋住了 WSL 的網路。安裝套件、`git push`、`git pull` 時暫時關閉防毒，完成後再打開。
 還是不行就問組長。
 
+## Windows 使用者
+
+專案透過 `.gitattributes` 固定文字檔使用 LF，避免 `core.autocrlf` 將檔案轉成 CRLF，
+造成 `docs/frozen_rules.md` 或資料檔的 SHA256 與凍結紀錄不符。更新屬性不會自動重寫已存在的工作目錄檔案。
+
+拉下此修正後，先確認以下兩檔沒有需要保留的本機修改，再於專案根目錄用 PowerShell 執行：
+
+```powershell
+git pull --ff-only
+Remove-Item docs/frozen_rules.md, data/default_of_credit_card_clients.csv
+git checkout -- docs/frozen_rules.md data/default_of_credit_card_clients.csv
+git check-attr eol -- docs/frozen_rules.md data/default_of_credit_card_clients.csv outputs/frozen/rules-g2a-20261116.json
+```
+
+最後一個指令的三行結果都應為 `eol: lf`。重新取回後，再執行原本的規則載入／分析指令。
+不要修改凍結紀錄的雜湊來配合 CRLF 檔案；雜湊檢查仍會嚴格比對檔案原始位元組。
+
 ## 執行
 
 ```bash
