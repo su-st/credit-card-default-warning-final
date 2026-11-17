@@ -24,6 +24,7 @@ import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 
 from .config import ROOT
+from .git_state import git_dirty
 
 _SEALED_ACCESS = ContextVar("sealed_artifact_access", default=False)
 
@@ -320,7 +321,7 @@ class Registry:
         path.mkdir(parents=True, exist_ok=False)
         try:
             commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-            dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True))
+            dirty = git_dirty(ROOT)
             packages = {p: importlib.metadata.version(p) for p in (
                 "pandas", "numpy", "scikit-learn", "xgboost", "joblib", "pytest")}
             meta = dict(run_id=run_id, level=level, model_id=model_id, description=description,
