@@ -23,6 +23,9 @@ GROUPS = {
 
 
 def render(df, meta):
+    if meta.get("mode") != "歷史回測":
+        st.info("公平性監控僅在歷史回測模式顯示；模擬資料沒有實際標籤，無法計算族群錯誤率。")
+        return
     st.header("公平性監控")
     st.caption("比較各族群被漏判（違約卻沒列入名單）與誤判（沒違約卻列入名單）的比例。")
 

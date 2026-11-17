@@ -95,9 +95,13 @@ git check-attr eol -- docs/frozen_rules.md data/default_of_credit_card_clients.c
 
 ## 執行
 
+平台只在本機執行，不要部署到公開網址。在本機 `.env` 設定 `PLATFORM_RUN_ID`，
+G2b 前填入 `00_build_dev_base.py` 印出的 M1-NS-dev19200 開發 run_id。
+平台會驗證整組模型、政策與交接檔；只有已完成且驗證成功的 L1-H run 能載入。
+
+
 ```bash
-python -m src.export                      # 1. 產生交接檔 outputs/predictions.csv（約 10 秒）
-python -m streamlit run app/main.py       # 2. 開啟平台，瀏覽器打開 http://localhost:8501
+python -m streamlit run app/main.py       # 開啟本機平台，瀏覽器打開 http://localhost:8501
 cd experiments && python 01_tuning.py     # 執行某個實驗（檔名換成自己的）
 ```
 
