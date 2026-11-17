@@ -1,5 +1,6 @@
 """C1.1 provenance tests use isolated Git repositories, without research data."""
 import subprocess
+import sys
 
 import pytest
 
@@ -23,6 +24,7 @@ def repo(tmp_path):
     return tmp_path
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='Windows filenames cannot contain newline characters')
 def test_untracked_results_are_clean(repo):
     folder = repo/'results/new run'
     folder.mkdir()
