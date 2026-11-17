@@ -1,9 +1,9 @@
 {
-  "created_at": "2026-11-17T08:25:41.633668+00:00",
-  "data_sha256": "88bd2bd25327b52af2148b7437740aca427aaf8f0e52ad782ee8bbae44b509bd",
+  "created_at": "2026-11-17T09:01:11.158292+00:00",
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
   "description": "F7 校準評估：M1-NS 的 OOF 風險分數，交叉擬合 isotonic 校準前後比較",
-  "finished_at": "2026-11-17T08:25:47.817910+00:00",
-  "git_commit": "0bac8ec99bf7896f9a0c45110c93f926d279bca8",
+  "finished_at": "2026-11-17T09:01:15.875853+00:00",
+  "git_commit": "796710dd31dfc6a07b0dcfb5c87f8b639168c270",
   "git_dirty": false,
   "level": "L1",
   "model_hash": "0439262ce9b2252318d9e8a8ac3265aaad919b31accfab67fc93c4ab5b86f53b",
@@ -22,6 +22,6 @@
   "protocol_run": true,
   "python": "3.12.10",
   "rules_freeze_id": null,
-  "run_id": "20261117-082541-8a192535e947",
+  "run_id": "20261117-090111-bc2c780616f4",
   "status": "complete"
 }
