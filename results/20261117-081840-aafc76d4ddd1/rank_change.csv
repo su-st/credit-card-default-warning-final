@@ -1,0 +1,6 @@
+名單比例,與原始名單的重疊比例,run_id,model_id
+0.05,0.9042,20261117-081840-aafc76d4ddd1,xgb-tuned-ns-s42train
+0.1,0.9896,20261117-081840-aafc76d4ddd1,xgb-tuned-ns-s42train
+0.2,0.9958,20261117-081840-aafc76d4ddd1,xgb-tuned-ns-s42train
+0.3,0.9725,20261117-081840-aafc76d4ddd1,xgb-tuned-ns-s42train
+0.5,0.9767,20261117-081840-aafc76d4ddd1,xgb-tuned-ns-s42train
