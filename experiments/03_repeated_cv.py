@@ -48,7 +48,7 @@ def rq3_lead_time(df, *, lags=LAGS, rates=RATES, folds=FOLDS, seed=SEED):
         oof_scores[lag] = (X, oof)
         lead_rows.append({"lag": lag, "提早月數": lag + 1, "特徵數": len(cols),
                           "CV AUC 平均": cv["平均"].iloc[0], "CV AUC 標準差": cv["標準差"].iloc[0]})
-        coverage = coverage_curve(y, oof, rates, bill=bill_at(df, lag))
+        coverage = coverage_curve(y, oof, rates, bill=bill_at(df, 0))  # 事後評估一律用 9 月帳單（規格第 4.4 節）
         coverage.insert(0, "提早月數", lag + 1)
         coverage.insert(0, "lag", lag)
         coverage_frames.append(coverage)
@@ -61,6 +61,7 @@ def evaluate_one_split(train, evaluation, *, rules, lag=0, seed=SEED):
 
     train：訓練資料（含 default 欄）。evaluation：評估資料；L1 給 None，改在 train 的 OOF 分數上評估。
     共同數值門檻 0.5 與固定名單前 20% 不重新選擇；正式政策在 train 的 OOF 重新選門檻。
+    帳單：選門檻用預警當時的帳單 bill_at(train, lag)；事後評估（涵蓋率、總成本）一律用 9 月帳單 bill_at(·, 0)。
     """
     X, _ = prepare(train, lag=lag, sensitive=False, engineered=False)
     y = train["default"]
@@ -70,12 +71,12 @@ def evaluate_one_split(train, evaluation, *, rules, lag=0, seed=SEED):
                 "固定名單前 20%": Policy.top_n(0.2),
                 "正式政策（成本門檻）": formal}
     if evaluation is None:
-        y_eval, score_eval, bill_eval = y, oof, bill_at(train, lag)
+        y_eval, score_eval, bill_eval = y, oof, bill_at(train, 0)  # 評估用 9 月帳單
     else:
         model = factory().fit(X, y)
         Z, _ = prepare(evaluation, lag=lag, sensitive=False, engineered=False)
         score_eval = pd.Series(model.predict_proba(Z)[:, 1], index=evaluation.index)
-        y_eval, bill_eval = evaluation["default"], bill_at(evaluation, lag)
+        y_eval, bill_eval = evaluation["default"], bill_at(evaluation, 0)  # 評估用 9 月帳單
     rows = []
     for name, policy in policies.items():
         overall = evaluate(y_eval, score=score_eval, policy=policy, bill=bill_eval, scenario=rules.scenario)["overall"]
