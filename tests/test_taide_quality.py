@@ -39,7 +39,8 @@ def test_non_template_quality_passes_but_send_policy_and_push_reject(monkeypatch
     ('explain','','','沒有輸出'),('care','  ','','沒有輸出'),
     ('explain','字'*121,'','超過字數'),('care','字'*121,'','超過字數'),
     ('explain','風險分數0.2','風險分數0.1','資料以外的數字'),
-    ('care','提醒您於１２日處理。','','出現數字'),
+    ('care','提醒您於１２日處理。','','具體日期或期限'),
+    ('care','目前記錄為１２。','','出現數字'),
     ('care','提醒您的風險分數。','','出現禁用字'),
 ])
 def test_quality_rejection_reasons(kind,text,facts,reason):
@@ -181,3 +182,39 @@ def test_added_staff_note_does_not_bypass_draft_length_limit(monkeypatch):
     assert result['text']==templates.risk_explanation(CUSTOMER)
     assert '超過字數' in result['reason']
     assert result['raw']==raw
+
+
+@pytest.mark.parametrize('category,text', [
+    ('具體日期或期限','請於星期六以前完成安排。'),
+    ('具體日期或期限','請在下個月初辦理。'),
+    ('具體日期或期限','請在三個工作天內處理。'),
+    ('具體日期或期限','請於７ 月底前處理。'),
+    ('具體日期或期限','請於十二月處理。'),
+    ('具體日期或期限','請於X 月處理。'),
+    ('聯絡方式','若需協助，請寄信至 care@example.org。'),
+    ('聯絡方式','請使用電子郵件：ｃａｒｅ＠ｅｘａｍｐｌｅ．ｏｒｇ。'),
+    ('聯絡方式','請瀏覽 help.example.tw/service。'),
+    ('聯絡方式','服務電話：零九一二三四五六七八。'),
+    ('聯絡方式','請撥打 +886 (2) 2345-6789。'),
+    ('承諾或保證','這項服務完全免費。'),
+    ('承諾或保證','這項安排不會收取任何手續費。'),
+    ('承諾或保證','申請必定通過。'),
+    ('威脅或後果','後續將交由催收單位跟進。'),
+    ('威脅或後果','我們將採取法律途徑。'),
+    ('威脅或後果','後續將停用信用卡。'),
+])
+def test_category_rules_reject_new_phrasings_and_generation(category,text,monkeypatch):
+    # These are category examples absent from the original P0 test corpus.
+    p0=Path(__file__).with_name('test_p0_safety.py').read_text()
+    assert text not in p0
+    assert explain.quality_check('care',text,'')=='出現'+category
+    monkeypatch.setattr(explain,'TAIDE_MODEL','fake')
+    monkeypatch.setattr(explain,'_chat',Mock(return_value=text))
+    result=explain.generate('care',CUSTOMER)
+    assert result['text']==templates.care_message({})
+    assert result['reason']=='出現'+category and result['raw']==text
+
+
+def test_category_rules_preserve_safe_generic_contact_and_fixed_template():
+    for text in [DRAFT,templates.care_message({}), '若有需要，歡迎透過客服專線與我們聯繫。']:
+        assert explain.quality_check('care',text,'')==''

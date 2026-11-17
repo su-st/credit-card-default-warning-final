@@ -12,6 +12,7 @@
 """
 import os
 import re
+import unicodedata
 
 import requests
 
@@ -51,13 +52,31 @@ CARE_EXAMPLE = (
 )
 CARE_BANNED = ["違約", "風險", "分數", "模型", "名單", "TAIDE", "人工智慧"]
 
-# C5 leader-approved draft quality vocabulary, separate from the send whitelist.
-CARE_QUALITY_DATES = ('今天', '明天', '後天', '今晚', '明早', '本週', '下週', '本月', '月底', '月初', '中午')
-CARE_QUALITY_PROMISES = ('保證', '免息', '核准', '凍結', '停卡')
-CARE_QUALITY_LINK = re.compile(r'https?://|www\.', re.IGNORECASE)
-CARE_CHINESE_NUMBER = re.compile(
-    r'[零〇一二兩三四五六七八九十百千萬億壹貳參肆伍陸柒捌玖拾佰仟]{2,}'
-    r'|[零〇一二兩三四五六七八九十百千萬億]+(?:年|月|日|天|點|時|分|元|塊)')
+# C5 draft-only categories. These patterns never change the send whitelist.
+_CARE_DIGITS = '零〇一二兩三四五六七八九十百千萬億壹貳參肆伍陸柒捌玖拾佰仟'
+_CARE_NUMBER = rf'(?:\d+|[{_CARE_DIGITS}]+|X)'
+CARE_QUALITY_RULES = (
+    ('具體日期或期限', re.compile(
+        rf'{_CARE_NUMBER}\s*(?:個\s*)?(?:工作\s*)?(?:年|月|日|號|天|週|周|小時|分鐘|點|時)'
+        r'|(?:今|明|後|昨)(?:天|日|晚|早)'
+        r'|(?:本|這|下|上|當|今)(?:個)?(?:月|週|周|年)(?:底|末|初|中)?'
+        r'|(?:星期|禮拜|週|周)\s*[一二三四五六日天]'
+        r'|月底|月末|月初|月中|中午|上午|下午|傍晚|凌晨', re.IGNORECASE)),
+    ('聯絡方式', re.compile(
+        r'(?:https?|ftp)://[^\s]+|www\.[^\s]+'
+        r'|[\w.%+-]+@(?:[\w-]+\.)+[\w-]+'
+        r'|(?<![A-Za-z0-9_@])(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/?#][^\s]*)?'
+        rf'|(?:電話|手機|傳真|專線|致電|撥打|撥號|tel|phone|fax)\s*(?:[:：]|為|是)?\s*[+()\d{_CARE_DIGITS}][()\d{_CARE_DIGITS} +.-]{{2,}}'
+        r'|(?<![A-Za-z0-9])\+?\d[\d ()-]{5,}\d(?![A-Za-z0-9])', re.IGNORECASE)),
+    ('承諾或保證', re.compile(
+        r'保證|核准|免息|免費|費用全免|手續費全免|服務費全免'
+        r'|不(?:會)?收(?:取)?(?:任何)?(?:費|手續費|服務費|利息)'
+        r'|無須支付(?:任何)?費用|零(?:費用|手續費|利息)'
+        r'|全額(?:減免|退還)|(?:一定|必定)(?:通過|核可|獲准)')),
+    ('威脅或後果', re.compile(
+        r'凍結|停卡|停用(?:信用卡|帳戶)|法律|法務|催收|催繳|提告|訴訟|強制執行|扣押|限制(?:交易|使用)')),
+)
+CARE_CHINESE_NUMBER = re.compile(rf'[{_CARE_DIGITS}]{{2,}}|[{_CARE_DIGITS}]+(?:元|塊)')
 EXPLAIN_UNSUPPORTED_WORDING = re.compile(
     r'風險\s*(?:等級|程度)?\s*(?:為|是|偏|較)?\s*[高中低]|違約機率|主要原因')
 FACTOR_NOTE = '模型判斷依據，不代表違約原因'
@@ -102,18 +121,15 @@ def quality_check(kind: str, text: str, facts: str) -> str:
     if len(text) > MAX_CHARS:
         return f'超過字數（{len(text)} 字）'
     if kind == 'care':
+        # Width normalization is for draft checks only, not policy or hashes.
+        normalized = unicodedata.normalize('NFKC', text)
+        for category, pattern in CARE_QUALITY_RULES:
+            if pattern.search(normalized):
+                return f'出現{category}'
         if _numbers(text):
             return '出現數字：' + '、'.join(sorted(_numbers(text)))
-        if CARE_CHINESE_NUMBER.search(text):
+        if CARE_CHINESE_NUMBER.search(normalized):
             return '出現中文數字'
-        if CARE_QUALITY_LINK.search(text):
-            return '出現未核實的連結'
-        dates = [word for word in CARE_QUALITY_DATES if word in text]
-        if dates:
-            return '出現未核實的日期用語：' + '、'.join(dates)
-        promises = [word for word in CARE_QUALITY_PROMISES if word in text]
-        if promises:
-            return '出現未核實的承諾或威嚇用語：' + '、'.join(promises)
         bad = [word for word in CARE_BANNED if word in text]
         if bad:
             return '出現禁用字：' + '、'.join(bad)
