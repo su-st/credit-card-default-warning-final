@@ -1,9 +1,9 @@
-"""公平性監控（T-蔡1：版面與說明文字）。
+"""公平性監控（T-蔡1 與 T-蔡2 比較版面）。
 
-負責人：蔡翌佳｜分支：feat/fairness-page-v2
+負責人：蔡翌佳
 本頁只呈現共用評估結果，不自行計算公平性指標或讀取資料檔。
 透過 C6 共用資料介面取得已驗證的政策，再由 protocol.evaluate 計算。
-T-蔡2 的正式圖表及雙模型比較另行完成。
+T-蔡2 先提供比較版面，F3 結果與共用讀取介面確認後再串接。
 """
 
 import pandas as pd
@@ -143,6 +143,34 @@ def _evaluate_backtest(df, meta):
     return {"groups": evaluation["groups"], "gaps": evaluation["gaps"]}
 
 
+# 規格 §4.5.4 與 D2 的比較名稱及文字說明，並非實際政策紀錄。
+COMPARISON_METHODS = {
+    "共同數值門檻 0.5": "兩個模型皆使用 0.5 門檻，不設名單上限。名單人數可能不同，用於對照期中結果。",
+    "固定名單人數（前 20%）": "兩個模型皆依分數取前 20%，控制名單規模，比較排序表現。",
+    "各模型正式政策": "各自使用訓練資料 OOF 選出的政策，主要情境名單上限為 20%。實際門檻須以各模型的政策紀錄為準。",
+}
+
+
+def _show_model_comparison(group):
+    """T-蔡2 版面預備：不讀檔、不重算、不以 T-蔡1 結果代替 F3。"""
+    st.divider()
+    st.subheader("含與不含敏感屬性模型比較")
+    st.caption("RQ1｜F3 分析結果比較（尚未串接）")
+    method = st.selectbox("比較方式", tuple(COMPARISON_METHODS), key="fairness_comparison_method")
+    st.caption(COMPARISON_METHODS[method])
+    st.caption(f"目前分組：{group}（沿用上方分組方式）")
+    a, b = st.columns(2)
+    with a:
+        st.markdown("**M1｜含敏感屬性**")
+        st.caption("尚未取得 F3 比較結果")
+    with b:
+        st.markdown("**M1-NS｜不含敏感屬性**")
+        st.caption("尚未取得 F3 比較結果")
+    st.info("尚未載入 F3 公平性比較結果。完成資料介面串接與來源驗證後，才會顯示 EO 差距、FPR 差距、族群表格及圖表。")
+    st.caption("結果來源：F3 的 results/<run_id>/ 分析結果。兩模型各自的資料層級、model_id、policy_id、run_id 與門檻來源尚待確認。")
+    st.caption("本區不使用上方 L1-H 單模型評估結果代替 F3，也不在頁面重算比較指標。差距縮小不代表符合公平性要求。")
+
+
 def render(df, meta):
     """C6 平台入口：模擬模式不讀取政策或計算回測指標。"""
     if meta.get("mode") != BACKTEST:
@@ -165,3 +193,4 @@ def render(df, meta):
     _show_explanation()
     group = st.selectbox("分組方式", GROUPS)
     _show_results(evaluation["groups"], evaluation["gaps"], group)
+    _show_model_comparison(group)
