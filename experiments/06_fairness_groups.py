@@ -62,6 +62,9 @@ plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "De
 plt.rcParams["axes.unicode_minus"] = False
 
 
+import re
+
+
 def _safe_slug(text: str, fallback: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9_-]+", "_", str(text)).strip("_-")
     return slug if slug else fallback
