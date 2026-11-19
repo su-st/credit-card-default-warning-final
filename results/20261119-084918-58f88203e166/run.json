@@ -1,0 +1,451 @@
+{
+  "configuration": {
+    "engineered": false,
+    "lag": 0,
+    "method": "raw",
+    "name": "XGBoost",
+    "params": {
+      "colsample_bytree": 0.7,
+      "eval_metric": "logloss",
+      "gamma": 0.0,
+      "learning_rate": 0.01,
+      "max_depth": 6,
+      "min_child_weight": 3,
+      "n_estimators": 500,
+      "random_state": 42,
+      "reg_lambda": 10.0,
+      "subsample": 0.8
+    },
+    "sensitive": false
+  },
+  "created_at": "2026-11-19T08:49:18.345173+00:00",
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "description": "G2b policy source",
+  "evaluation_kind": "policy",
+  "finished_at": "2026-11-19T08:49:18.515965+00:00",
+  "git_commit": "28b4e3e61e078461a6a789906ce7ebfad30f5f28",
+  "git_dirty": false,
+  "level": "L1",
+  "model_hash": "a411439027bf773e297fc256a8b08b1ae9031af8987df9f3a41309e652d1ecbf",
+  "model_id": "xgb-tuned-m1-ns-s42train-541e2b285da6",
+  "model_path": "outputs/models/xgb-tuned-m1-ns-s42train-541e2b285da6-a411439027bf/model.joblib",
+  "model_record": "outputs/models/xgb-tuned-m1-ns-s42train-541e2b285da6-a411439027bf/model.json",
+  "model_source_run_id": "20261119-084809-582445c80e6f",
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "cb4921d3383ba6c914fc1bf4632e275e9c4f4cff7e21a8bea8ed2d192e0b8366",
+  "policy_hash": "0d54294796f1480d3e9399efee84c7a2efccef8a0285e5c967ed4b85ab7ec8de",
+  "policy_id": "group-0d54294796f1480d",
+  "protocol_run": true,
+  "python": "3.12.3",
+  "rules_freeze_id": "g2a-20261116",
+  "rules_freeze_sha256": "094f874a8096ef3c4c8db0d51b9e0fba2d356a41b9c67db6531a1d3b59aaf95b",
+  "run_id": "20261119-084918-58f88203e166",
+  "scenario": {
+    "contact_cost": 50,
+    "loss_ratio": 0.5,
+    "max_list_rate": 0.2,
+    "rescue_rate": 0.2
+  },
+  "search_evidence": {
+    "base_policy": {
+      "evidence": {
+        "oof_scores_hash": "4110c4b2690f56ac2df952e78404d7df90c2f12690723960f9e91ac73099a6de",
+        "training_ids_hash": "343f6794c8474122aa2b28ebb420346123de29601c4be007fc9d298c21c2b52c"
+      },
+      "kind": "single",
+      "max_list_rate": 0.2,
+      "partition_name": null,
+      "rate": null,
+      "scenario": {
+        "contact_cost": 50,
+        "loss_ratio": 0.5,
+        "max_list_rate": 0.2,
+        "rescue_rate": 0.2
+      },
+      "selection": "cost",
+      "threshold": 0.61,
+      "thresholds": null
+    },
+    "candidates_path": "outputs/runs/20261119-084918-58f88203e166/search_candidates.csv",
+    "candidates_sha256": "76f04a2c205af28d692c7427b70a2fa1358b52994014cc3d97f4c0e47b3242e6",
+    "cap_triggered": true,
+    "final_results": {
+      "gaps": [
+        {
+          "EO 差距": 0.056962796986043784,
+          "FPR 差距": 0.0486194627586502,
+          "分組方式": "性別×年齡層"
+        }
+      ],
+      "groups": [
+        {
+          "FNR": 0.5291113381001021,
+          "FPR": 0.10311151487622076,
+          "FPR 上限": 0.11244271729072947,
+          "FPR 下限": 0.09447225057033587,
+          "Recall": 0.47088866189989786,
+          "Recall 上限": 0.5022087166134772,
+          "Recall 下限": 0.4397961718774966,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・30-39 歲",
+          "未違約人數": 4403,
+          "總人數": 5382,
+          "違約人數": 979
+        },
+        {
+          "FNR": 0.4814814814814815,
+          "FPR": 0.14051841746248295,
+          "FPR 上限": 0.1675550518372317,
+          "FPR 下限": 0.11723003497987393,
+          "Recall": 0.5185185185185185,
+          "Recall 上限": 0.5774386915508934,
+          "Recall 下限": 0.4590787884649715,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・50 歲以上",
+          "未違約人數": 733,
+          "總人數": 1003,
+          "違約人數": 270
+        },
+        {
+          "FNR": 0.47214854111405835,
+          "FPR": 0.11910169063840526,
+          "FPR 上限": 0.12955699444648894,
+          "FPR 下限": 0.10938410482862022,
+          "Recall": 0.5278514588859416,
+          "Recall 上限": 0.556802621960405,
+          "Recall 下限": 0.49871174042944677,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・29 歲以下",
+          "未違約人數": 3963,
+          "總人數": 5094,
+          "違約人數": 1131
+        },
+        {
+          "FNR": 0.4774881516587678,
+          "FPR": 0.12153518123667377,
+          "FPR 上限": 0.1341264802513456,
+          "FPR 下限": 0.10997577634209857,
+          "Recall": 0.5225118483412322,
+          "Recall 上限": 0.5560317411058081,
+          "Recall 下限": 0.4887879590924532,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・30-39 歲",
+          "未違約人數": 2814,
+          "總人數": 3658,
+          "違約人數": 844
+        },
+        {
+          "FNR": 0.4757433489827856,
+          "FPR": 0.10288900152052712,
+          "FPR 上限": 0.11707564229652119,
+          "FPR 下限": 0.0902457172348544,
+          "Recall": 0.5242566510172144,
+          "Recall 上限": 0.562717943301342,
+          "Recall 下限": 0.4855054554459483,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・29 歲以下",
+          "未違約人數": 1973,
+          "總人數": 2612,
+          "違約人數": 639
+        },
+        {
+          "FNR": 0.48697068403908794,
+          "FPR": 0.09189895470383275,
+          "FPR 上限": 0.10440678280112291,
+          "FPR 下限": 0.08075444089429469,
+          "Recall": 0.5130293159609121,
+          "Recall 上限": 0.552360714903334,
+          "Recall 下限": 0.4735358962281688,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・40-49 歲",
+          "未違約人數": 2296,
+          "總人數": 2910,
+          "違約人數": 614
+        },
+        {
+          "FNR": 0.4794275491949911,
+          "FPR": 0.11668681983071343,
+          "FPR 上限": 0.13305465466863875,
+          "FPR 下限": 0.10209536932581963,
+          "Recall": 0.5205724508050089,
+          "Recall 上限": 0.5617044341899337,
+          "Recall 下限": 0.4791596486517803,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・40-49 歲",
+          "未違約人數": 1654,
+          "總人數": 2213,
+          "違約人數": 559
+        },
+        {
+          "FNR": 0.48351648351648346,
+          "FPR": 0.11812865497076024,
+          "FPR 上限": 0.14149015844284046,
+          "FPR 下限": 0.09818324892077519,
+          "Recall": 0.5164835164835165,
+          "Recall 上限": 0.5751214893457698,
+          "Recall 下限": 0.4573880922694217,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・50 歲以上",
+          "未違約人數": 855,
+          "總人數": 1128,
+          "違約人數": 273
+        }
+      ],
+      "overall": [
+        {
+          "AUC": 0.7834435794898947,
+          "F1": 0.5383321792462162,
+          "Precision": 0.566875,
+          "Recall": 0.5125258994160858,
+          "policy_id": "group-0d54294796f1480d",
+          "原始名單人數": 4976,
+          "名單上限是否觸發": true,
+          "名單人數": 4800,
+          "名單比例": 0.2,
+          "帳單金額涵蓋率": 0.5276611157622878,
+          "漏判人數": 2588,
+          "總成本": 114146280.80000001,
+          "誤報人數": 2079,
+          "違約者涵蓋率": 0.5125258994160858
+        }
+      ]
+    },
+    "kind": "F3b",
+    "partition_name": "性別×年齡層",
+    "policy_hash": "0d54294796f1480d3e9399efee84c7a2efccef8a0285e5c967ed4b85ab7ec8de",
+    "policy_id": "group-0d54294796f1480d",
+    "raw_results": {
+      "gaps": [
+        {
+          "EO 差距": 0.014822142925029591,
+          "FPR 差距": 0.0486194627586502,
+          "分組方式": "性別×年齡層"
+        }
+      ],
+      "groups": [
+        {
+          "FNR": 0.47906026557711956,
+          "FPR": 0.13195548489666137,
+          "FPR 上限": 0.142273843259003,
+          "FPR 下限": 0.12227877786766732,
+          "Recall": 0.5209397344228804,
+          "Recall 上限": 0.5520896658817861,
+          "Recall 下限": 0.4896261160808465,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・30-39 歲",
+          "未違約人數": 4403,
+          "總人數": 5382,
+          "違約人數": 979
+        },
+        {
+          "FNR": 0.4814814814814815,
+          "FPR": 0.14051841746248295,
+          "FPR 上限": 0.1675550518372317,
+          "FPR 下限": 0.11723003497987393,
+          "Recall": 0.5185185185185185,
+          "Recall 上限": 0.5774386915508934,
+          "Recall 下限": 0.4590787884649715,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・50 歲以上",
+          "未違約人數": 733,
+          "總人數": 1003,
+          "違約人數": 270
+        },
+        {
+          "FNR": 0.47214854111405835,
+          "FPR": 0.11910169063840526,
+          "FPR 上限": 0.12955699444648894,
+          "FPR 下限": 0.10938410482862022,
+          "Recall": 0.5278514588859416,
+          "Recall 上限": 0.556802621960405,
+          "Recall 下限": 0.49871174042944677,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・29 歲以下",
+          "未違約人數": 3963,
+          "總人數": 5094,
+          "違約人數": 1131
+        },
+        {
+          "FNR": 0.4774881516587678,
+          "FPR": 0.12153518123667377,
+          "FPR 上限": 0.1341264802513456,
+          "FPR 下限": 0.10997577634209857,
+          "Recall": 0.5225118483412322,
+          "Recall 上限": 0.5560317411058081,
+          "Recall 下限": 0.4887879590924532,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・30-39 歲",
+          "未違約人數": 2814,
+          "總人數": 3658,
+          "違約人數": 844
+        },
+        {
+          "FNR": 0.4757433489827856,
+          "FPR": 0.10288900152052712,
+          "FPR 上限": 0.11707564229652119,
+          "FPR 下限": 0.0902457172348544,
+          "Recall": 0.5242566510172144,
+          "Recall 上限": 0.562717943301342,
+          "Recall 下限": 0.4855054554459483,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・29 歲以下",
+          "未違約人數": 1973,
+          "總人數": 2612,
+          "違約人數": 639
+        },
+        {
+          "FNR": 0.48697068403908794,
+          "FPR": 0.09189895470383275,
+          "FPR 上限": 0.10440678280112291,
+          "FPR 下限": 0.08075444089429469,
+          "Recall": 0.5130293159609121,
+          "Recall 上限": 0.552360714903334,
+          "Recall 下限": 0.4735358962281688,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・40-49 歲",
+          "未違約人數": 2296,
+          "總人數": 2910,
+          "違約人數": 614
+        },
+        {
+          "FNR": 0.4794275491949911,
+          "FPR": 0.11668681983071343,
+          "FPR 上限": 0.13305465466863875,
+          "FPR 下限": 0.10209536932581963,
+          "Recall": 0.5205724508050089,
+          "Recall 上限": 0.5617044341899337,
+          "Recall 下限": 0.4791596486517803,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "男性・40-49 歲",
+          "未違約人數": 1654,
+          "總人數": 2213,
+          "違約人數": 559
+        },
+        {
+          "FNR": 0.48351648351648346,
+          "FPR": 0.11812865497076024,
+          "FPR 上限": 0.14149015844284046,
+          "FPR 下限": 0.09818324892077519,
+          "Recall": 0.5164835164835165,
+          "Recall 上限": 0.5751214893457698,
+          "Recall 下限": 0.4573880922694217,
+          "分組方式": "性別×年齡層",
+          "小樣本": false,
+          "族群": "女性・50 歲以上",
+          "未違約人數": 855,
+          "總人數": 1128,
+          "違約人數": 273
+        }
+      ],
+      "overall": [
+        {
+          "AUC": null,
+          "F1": 0.5386485172581429,
+          "Precision": 0.5566720257234726,
+          "Recall": 0.5217555095121492,
+          "policy_id": "group-0d54294796f1480d",
+          "原始名單人數": null,
+          "名單上限是否觸發": null,
+          "名單人數": 4976,
+          "名單比例": 0.20733333333333334,
+          "帳單金額涵蓋率": 0.530985780670455,
+          "漏判人數": 2539,
+          "總成本": 114070404.7,
+          "誤報人數": 2206,
+          "違約者涵蓋率": 0.5217555095121492
+        }
+      ]
+    },
+    "results_candidates_sha256": "76f04a2c205af28d692c7427b70a2fa1358b52994014cc3d97f4c0e47b3242e6",
+    "t0": 0.61,
+    "target_definition": "single_policy_oof_recall",
+    "target_recall": 0.5206253531738557
+  },
+  "search_evidence_hash": "1fa567a3a66a0cdcb9f2af6cd3638c8983e6b780fb8f7f5da2194e878b85a5cb",
+  "status": "complete",
+  "training_timing": {
+    "artifact_seconds": 0.06423649700082024,
+    "calibrator_fit_seconds": 0.0,
+    "environment": {
+      "logical_cpus": 32,
+      "machine": "x86_64",
+      "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+      "packages": {
+        "joblib": "1.6.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pytest": "9.2.0",
+        "scikit-learn": "1.9.1",
+        "xgboost": "3.4.1"
+      },
+      "processor": "x86_64",
+      "python": "3.12.3",
+      "threadpools": [
+        {
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scikit_learn.libs/libgomp-e985bcbb.so.1.0.0",
+          "internal_api": "openmp",
+          "num_threads": 32,
+          "prefix": "libgomp",
+          "user_api": "openmp",
+          "version": null
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-f48b354e.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.34.106.0"
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-5f890258.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.31.dev"
+        }
+      ]
+    },
+    "final_telemetry_commit_excluded": true,
+    "finished_at": "2026-11-19T08:49:18.447558+00:00",
+    "fit_seconds": 0.8552809550019447,
+    "measurement_scope": "policy_source",
+    "model_threads": -1,
+    "oof_seconds": 4.8917083499982255,
+    "policy_seconds": 0.5023933269985719,
+    "started_at": "2026-11-19T08:49:17.873850+00:00",
+    "submodel_fit_seconds": {},
+    "submodel_total_fit_seconds": 0,
+    "timestamp_basis": "UTC start plus monotonic elapsed",
+    "training_count": 24000,
+    "training_timing_id": "xgb-tuned-m1-ns-s42train-541e2b285da6",
+    "wall_seconds": 0.5737080250000872
+  }
+}

@@ -17,6 +17,7 @@ from .registry import (Run, IntegrityError, content_hash, file_hash, identifier,
 from .git_state import git_dirty
 
 _OPENING = ContextVar("opening_nested_seal", default=None)
+_L3_SOURCE = ContextVar("verified_l3_training_source", default=None)
 
 
 def _metadata(level, description, run_id, **kwargs):
@@ -57,6 +58,14 @@ def start_protocol_run(level, description, *, model_id, rules_freeze_id, model_f
         rules_freeze_id = freeze["rules_freeze_id"]
         extra = dict(model_id=f"{chosen['model_id']}-l3-{uuid4().hex[:8]}", entry=entry,
                      model_freeze_id=model_freeze_id, model_freeze_sha256=digest)
+        shared = _L3_SOURCE.get()
+        if shared is not None:
+            source = registry.load_run(shared)['run']
+            if (source['level'] != 'L3' or source['model_freeze_id'] != model_freeze_id
+                    or source['rules_freeze_id'] != rules_freeze_id):
+                raise IntegrityError('Invalid shared L3 training source')
+            extra.update(model_id=source['model_id'], retraining=source['retraining'],
+                         model_source_run_id=shared, training_timing=source['training_timing'], seed=source['seed'])
     else:
         if entry is not None or _OPENING.get() is None:
             raise PermissionError("L4 runs are created only by open_sealed after seal verification")
@@ -115,7 +124,51 @@ def validate_policy_record(registry, meta, record, threshold):
         raise IntegrityError("Holdout policy cannot mix with formal policy")
     if meta["level"] in {"L2", "L3"} and threshold["source_level"] == "L1-H":
         raise IntegrityError("Formal model cannot use a development policy")
+    if "calibrator" in meta:
+        evidence = policy.evidence
+        if (evidence.get("calibrator_hash") != meta["calibrator"]["calibrator_hash"]
+                or evidence.get("crossfit_oof_sha256") != meta["calibrator"]["crossfit_oof_sha256"]):
+            raise IntegrityError("Policy lacks matching cross-fitted calibration evidence")
     return policy
+
+
+def training_evidence(run, X, oof, config, seed, fit_seconds):
+    """Recorded only after an actual fit, before registering its L3 artifact."""
+    return dict(independent_fit=True, fit_run_id=run.run_id, seed=int(seed),
+                cv_seed=oof.attrs['seed'], n_splits=oof.attrs['folds'],
+                training_ids_hash=content_hash(X.index.tolist()),
+                configuration_hash=content_hash(config), fit_seconds=fit_seconds,
+                oof_scores_hash=content_hash(oof.tolist()),
+                fold_assignment_hash=content_hash(oof.attrs['fold_assignment'].tolist()))
+
+
+def validate_l3_training(registry, meta, record, chosen):
+    evidence=meta.get('retraining', {})
+    if (record['level']!='L3' or record['model_id']==chosen['model_id']
+            or record['model_id']!=meta['model_id'] or evidence.get('independent_fit') is not True
+            or evidence.get('seed')!=record['seed'] or evidence.get('seed')!=meta.get('seed')
+            or evidence.get('training_ids_hash')!=record['training_ids_hash']
+            or evidence.get('configuration_hash')!=content_hash(chosen['configuration'])
+            or evidence.get('n_splits')!=record['n_splits']
+            or isinstance(evidence.get('fit_seconds'),bool)
+            or not isinstance(evidence.get('fit_seconds'),(int,float))
+            or not np.isfinite(evidence['fit_seconds']) or evidence['fit_seconds']<=0):
+        raise IntegrityError('L3 requires a new identity, independent fit and matching training evidence')
+    if ('training_timing' in meta and
+            meta['training_timing']['fit_seconds']!=evidence['fit_seconds']):
+        raise IntegrityError('L3 fit timing differs from training evidence')
+    if evidence.get('fit_run_id')!=meta['run_id']:
+        source=registry.load_run(evidence.get('fit_run_id'))['run']
+        if (source['level']!='L3' or source['model_id']!=record['model_id']
+                or source['model_hash']!=record['model_hash'] or source['retraining']!=evidence
+                or source['model_freeze_id']!=meta['model_freeze_id']):
+            raise IntegrityError('L3 shared model lacks a completed independent fit source')
+    path=registry.path(record['model_path']).parent
+    oof=pd.read_csv(path/'oof.csv',converters={'oof_score':float})
+    folds=pd.read_csv(path/'folds.csv')
+    if (content_hash(oof.oof_score.tolist())!=evidence.get('oof_scores_hash')
+            or content_hash(folds['fold'].tolist())!=evidence.get('fold_assignment_hash')):
+        raise IntegrityError('L3 OOF/fold evidence mismatch')
 
 
 def load_protocol_run(registry, run_id, *, allow_running=False):
@@ -150,13 +203,24 @@ def load_protocol_run(registry, run_id, *, allow_running=False):
         freeze, chosen, _, digest = registry.frozen_entry(meta["model_freeze_id"], meta["entry"])
         if digest != meta["model_freeze_sha256"] or freeze["rules_freeze_id"] != meta["rules_freeze_id"]:
             raise IntegrityError("Frozen record mismatch")
-        if meta["level"] == "L3" and meta["model_hash"] == chosen["model_hash"]:
-            raise IntegrityError("L3 must use its actual retrained model, not the frozen model hash")
+        if meta["level"] == "L3":
+            validate_l3_training(registry, meta, record, chosen)
         if meta["level"] == "L2":
-            for key in ("model_id", "model_hash", "params_hash", "policy_id", "policy_hash"):
+            keys = ("model_id", "model_hash", "params_hash") if chosen.get("evaluation_kind") == "score_only" else ("model_id", "model_hash", "params_hash", "policy_id", "policy_hash")
+            if chosen.get("evaluation_kind") == "score_only" and ("policy_id" in meta or (path / "threshold.json").exists()):
+                raise IntegrityError("Score-only run cannot have policy artifacts")
+            if meta.get("calibrator") != chosen.get("calibrator"):
+                raise IntegrityError("Frozen calibrator mismatch")
+            for key in keys:
                 if meta[key] != chosen[key]:
                     raise IntegrityError(f"L2 frozen {key} mismatch")
     model, _ = registry.load_model(record)
+    if "calibrator" in meta:
+        from .model_freeze import load_calibrator
+        if (meta.get("calibrator_hash") != meta["calibrator"]["calibrator_hash"]
+                or meta.get("calibrator_record") != meta["calibrator"]["calibrator_record"]):
+            raise IntegrityError("Calibrator/run identity mismatch")
+        load_calibrator(registry, meta["calibrator"], record)
     threshold = None
     policy = None
     if "policy_id" in meta:
@@ -208,8 +272,8 @@ class ProtocolRun(Run):
             raise IntegrityError("L4 cannot impersonate a single frozen model/policy")
         if self.meta["level"] == "L3" and "model_hash" in fields:
             _, chosen, _, _ = self.registry.frozen_entry(self.meta["model_freeze_id"], self.meta["entry"])
-            if fields["model_hash"] == chosen["model_hash"]:
-                raise IntegrityError("L3 cannot reuse the frozen model hash")
+            if fields["model_hash"] == chosen["model_hash"] and not self.meta.get('retraining', {}).get('independent_fit'):
+                raise IntegrityError("L3 requires independent fit evidence even when model bytes match")
         super().update(**fields)
 
     def bind_model(self, record):
@@ -220,9 +284,12 @@ class ProtocolRun(Run):
             if record["columns"] != chosen["columns"]:
                 raise IntegrityError("L3 features differ from frozen configuration")
             model, _ = self.registry.load_model(record)
-            for key, value in chosen["configuration"]["params"].items():
-                if content_hash(model.named_steps["clf"].get_params()[key]) != content_hash(value):
-                    raise IntegrityError("L3 parameters differ from frozen configuration")
+            models = model.models_.values() if hasattr(model, 'models_') else [model]
+            for submodel in models:
+                for key, value in chosen["configuration"]["params"].items():
+                    if content_hash(submodel.named_steps["clf"].get_params()[key]) != content_hash(value):
+                        raise IntegrityError("L3 parameters differ from frozen configuration")
+            validate_l3_training(self.registry, self.meta, record, chosen)
         super().bind_model(record)
 
     def attach_model(self, model, X, y, score, *, seed=42, prediction_ids=None):
@@ -264,7 +331,9 @@ class ProtocolRun(Run):
         Z, _ = p.prepare(test, lag=cfg["lag"], sensitive=cfg["sensitive"], engineered=cfg["engineered"])
         factory = lambda: p.make_model(cfg["name"], params=cfg["params"])
         score = p.oof_predict(factory, X, train["default"], seed=seed)
-        model = factory().fit(X, train["default"])
+        from .training_time import timed_call
+        model, fit_seconds = timed_call(factory().fit, X, train["default"])
+        self.update(seed=int(seed), retraining=training_evidence(self, X, score, cfg, seed, fit_seconds))
         self.attach_model(model, X, train["default"], score, seed=seed)
         frozen_policy = p.Policy(**chosen["protocol_policy"])
         rules = p.load_rules(self.meta["rules_freeze_id"])

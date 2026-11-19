@@ -278,6 +278,16 @@ class Registry:
         if len(matches) != 1:
             raise IntegrityError("Frozen entry must identify exactly one model/policy")
         selected = matches[0]
+        if freeze.get("schema_version") == 2:
+            from .model_freeze import _validate_source, APPROVER
+            if freeze.get("status") != "approved" or freeze.get("approved_by") != APPROVER:
+                raise IntegrityError("Approved version-2 freeze required")
+            if (len({row["entry_id"] for row in freeze["entries"]}) != len(freeze["entries"])
+                    or file_hash(self.outputs / "frozen" / f"rules-{freeze['rules_freeze_id']}.json") != freeze["rules_freeze_sha256"]):
+                raise IntegrityError("Duplicate entries or rules checksum mismatch")
+            source = self.load_run(selected["source_run_id"])
+            _validate_source(self, freeze, selected, source)
+            return freeze, selected, source, file_hash(path)
         if not selected.get("role") or not selected.get("comparison_id"):
             raise IntegrityError("Frozen entry requires a role and comparison_id")
         source_meta = read_json(self.runs / identifier(selected["source_run_id"]) / "run.json")
@@ -337,9 +347,15 @@ class Registry:
             run = Run(self, meta)
             if frozen is not None:
                 run.bind_model(source["model_record"])
-                policy = dict(source["threshold"], run_id=run_id)
-                write_json(path / "threshold.json", policy)
-                run.update(policy_id=policy["policy_id"], policy_hash=policy["policy_hash"], scenario=policy["scenario"])
+                if source["threshold"] is not None:
+                    policy = dict(source["threshold"], run_id=run_id)
+                    write_json(path / "threshold.json", policy)
+                    run.update(policy_id=policy["policy_id"], policy_hash=policy["policy_hash"], scenario=policy["scenario"])
+                if selected.get("evaluation_kind") == "score_only":
+                    run.update(evaluation_kind="score_only", protocol_run=True)
+                if "calibrator" in selected:
+                    run.update(calibrator=selected["calibrator"], calibrator_hash=selected["calibrator_hash"],
+                               calibrator_record=selected["calibrator_record"], protocol_run=True)
             return run
         except Exception:
             # Leave a failed marker; retries always need another ID.

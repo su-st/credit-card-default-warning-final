@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
 
+from src.training_time import timed_call, execution_environment
 from src.config import XGB_TUNED
 from src.protocol import (Policy, bill_at, choose_threshold, coverage_curve, cv_evaluate, dev_data, evaluate,
                           load_rules, make_model, oof_predict, prepare, start_run)
@@ -73,7 +74,7 @@ def evaluate_one_split(train, evaluation, *, rules, lag=0, seed=SEED):
     if evaluation is None:
         y_eval, score_eval, bill_eval = y, oof, bill_at(train, 0)  # 評估用 9 月帳單
     else:
-        model = factory().fit(X, y)
+        model, fit_seconds = timed_call(factory().fit, X, y)
         Z, _ = prepare(evaluation, lag=lag, sensitive=False, engineered=False)
         score_eval = pd.Series(model.predict_proba(Z)[:, 1], index=evaluation.index)
         y_eval, bill_eval = evaluation["default"], bill_at(evaluation, 0)  # 評估用 9 月帳單
@@ -82,11 +83,13 @@ def evaluate_one_split(train, evaluation, *, rules, lag=0, seed=SEED):
         overall = evaluate(y_eval, score=score_eval, policy=policy, bill=bill_eval, scenario=rules.scenario)["overall"]
         overall.insert(0, "政策", name)
         rows.append(overall)
-    return pd.concat(rows, ignore_index=True)
+    result = pd.concat(rows, ignore_index=True)
+    result.attrs["fit_seconds"] = None if evaluation is None else fit_seconds
+    return result
 
 
-if __name__ == "__main__":
-    df = dev_data()  # L1：訓練集 24,000 筆
+def run_analysis(df):
+    """原L1分析流程，資料由呼叫端提供，新增計時不改指標。"""
     y = df["default"]
     rules = load_rules(RULES_FREEZE_ID)
     print(f"資料層級 L1，{len(df):,} 筆，違約率 {y.mean():.1%}")
@@ -97,7 +100,7 @@ if __name__ == "__main__":
     print(f"run_id = {run.run_id}")
 
     # ---------- 1. RQ3 ----------
-    lead, coverage, scores = rq3_lead_time(df)
+    (lead, coverage, scores), rq3_seconds = timed_call(rq3_lead_time, df)
     run.save_csv("rq3_lead_time", lead.round(4))
     run.save_csv("rq3_coverage", coverage.round(4))
     print(lead.round(4).to_string(index=False))
@@ -110,7 +113,19 @@ if __name__ == "__main__":
 
     # ---------- 3. run 需要綁定一個模型才能完成：保存 lag=0 的 M1-NS 訓練紀錄 ----------
     X0, oof0 = scores[0]
-    model = factory().fit(X0, y)
+    model, fit_seconds = timed_call(factory().fit, X0, y)
+    run.update(training_timing=dict(fit_seconds=fit_seconds, rq3_seconds=rq3_seconds,
+                                   environment=execution_environment()))
+    run.save_csv("training_timing", pd.DataFrame([dict(fit_seconds=fit_seconds, rq3_seconds=rq3_seconds)]))
     run.attach_model(model, X0, y, oof0)
     run.finish()
     print(f"完成。結果在 results/{run.run_id}/")
+
+    return dict(run=run, lead=lead, coverage=coverage, check=check)
+
+def main():
+    return run_analysis(dev_data())
+
+
+if __name__ == "__main__":
+    main()
