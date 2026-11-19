@@ -30,7 +30,7 @@ N_BOOT = int(sys.argv[1]) if len(sys.argv) > 1 else 2000   # 預設 2000 次正�
 # 組長要求：模型不用自己取名，直接使用跑 00_build_dev_base 時印出的 M1 和 M1-NS 原生 model_id
 # 請確保這裡的 ID 與你當時 00 階段印出的一致
 MODEL_IDS = {
-    "M1": "xgb-tuned-s42train",       # 範例原生 model_id（含敏感屬性），若有不同請依實際調整
+    "M1": "xgb-tuned-s42train",       # M1 原生 model_id（含敏感屬性）
     "M1-NS": "xgb-tuned-ns-s42train"  # 不含敏感屬性
 }
 
@@ -53,6 +53,57 @@ def make_partitions(df: pd.DataFrame) -> dict:
     for name, p in parts.items():
         assert p.notna().all(), f"分組「{name}」有空值，分組必須完整"
     return parts
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "DejaVu Sans"]
+plt.rcParams["axes.unicode_minus"] = False
+
+
+def plot_group_metrics_with_ci(run, groups_df: pd.DataFrame, mname: str) -> None:
+    if groups_df is None or groups_df.empty:
+        return
+    policies = groups_df["政策比較"].dropna().unique().tolist() if "政策比較" in groups_df.columns else [None]
+    specs = [
+        ("Recall", "Recall 下限", "Recall 上限", "Recall", "fairness_groups_recall_ci"),
+        ("FPR", "FPR 下限", "FPR 上限", "FPR（誤報率）", "fairness_groups_fpr_ci"),
+    ]
+    for policy in policies:
+        sub = groups_df[groups_df["政策比較"] == policy].copy() if policy is not None else groups_df.copy()
+        if sub.empty:
+            continue
+        suffix = f"_{policy}" if policy is not None else ""
+        title_p = f"（{policy}）" if policy is not None else ""
+        labels = (
+            sub["分組方式"].astype(str) + "｜" + sub["族群"].astype(str)
+            if {"分組方式", "族群"}.issubset(sub.columns)
+            else sub.iloc[:, 0].astype(str)
+        )
+        for col, lo_c, hi_c, xlabel, base in specs:
+            if col not in sub.columns:
+                continue
+            vals = sub[col].to_numpy(dtype=float)
+            y_pos = np.arange(len(sub))
+            fig, ax = plt.subplots(figsize=(8.5, max(4.5, len(sub) * 0.32 + 1.5)))
+            if lo_c in sub.columns and hi_c in sub.columns:
+                lo_e = np.clip(vals - sub[lo_c].to_numpy(dtype=float), 0.0, None)
+                hi_e = np.clip(sub[hi_c].to_numpy(dtype=float) - vals, 0.0, None)
+                ax.errorbar(vals, y_pos, xerr=[lo_e, hi_e], fmt="o", capsize=3, markersize=4.5, label="95% 信賴區間")
+            else:
+                ax.scatter(vals, y_pos, s=25, label="點估計")
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(labels, fontsize=8.5)
+            ax.invert_yaxis()
+            ax.set_xlim(0.0, 1.0)
+            ax.set_xlabel(xlabel)
+            ax.set_title(f"{mname}{title_p} - 各族群 {xlabel} 附信賴區間")
+            ax.grid(axis="x", linestyle="--", alpha=0.4)
+            ax.legend(loc="best", frameon=False)
+            fig.tight_layout()
+            run.save_fig(f"{base}{suffix}", fig)
+            plt.close(fig)
 
 
 def run_single_model(mname: str, sensitive: bool, df: pd.DataFrame, bill, scenario, parts, y) -> dict:
@@ -110,11 +161,12 @@ if __name__ == "__main__":
 
     # 1. 跑 M1 模型（含敏感屬性）
     m1_res = run_single_model("M1", sensitive=True, df=data, bill=bill, scenario=scenario, parts=parts, y=y)
-    run_m1 = start_run("L1", "F3 族群公平性：M1 模型獨立評估", model_id=MODEL_IDS["M1"])
+    run_m1 = start_run("L1", "F3 族群公平性：M1 模型獨立評估", model_id=MODEL_IDS["M1"], rules_freeze_id=RULES_FREEZE_ID)
     print(f"M1 run_id = {run_m1.run_id}")
     run_m1.attach_model(m1_res["model"], m1_res["X"], y, m1_res["score"])
     run_m1.save_csv("fairness_overall", m1_res["overall"])
     run_m1.save_csv("fairness_groups", m1_res["groups"])
+    plot_group_metrics_with_ci(run_m1, m1_res["groups"], "M1")
     run_m1.save_csv("fairness_gaps_point", m1_res["gaps_point"])
     run_m1.save_csv("fairness_gaps", m1_res["gaps_ci"])
     run_m1.finish()
@@ -142,11 +194,12 @@ if __name__ == "__main__":
     pair_ci_combined = pd.concat(pair_ci_dfs, ignore_index=True)
     final_m1ns_gaps = pd.concat([m1ns_res["gaps_ci"], pair_ci_combined], ignore_index=True)
 
-    run_m1ns = start_run("L1", "F3 族群公平性：M1-NS 模型評估與 M1 成對比較", model_id=MODEL_IDS["M1-NS"])
+    run_m1ns = start_run("L1", "F3 族群公平性：M1-NS 模型評估與 M1 成對比較", model_id=MODEL_IDS["M1-NS"], rules_freeze_id=RULES_FREEZE_ID)
     print(f"M1-NS run_id = {run_m1ns.run_id}")
     run_m1ns.attach_model(m1ns_res["model"], m1ns_res["X"], y, m1ns_res["score"])
     run_m1ns.save_csv("fairness_overall", m1ns_res["overall"])
     run_m1ns.save_csv("fairness_groups", m1ns_res["groups"])
+    plot_group_metrics_with_ci(run_m1ns, m1ns_res["groups"], "M1-NS")
     run_m1ns.save_csv("fairness_gaps_point", m1ns_res["gaps_point"])
     run_m1ns.save_csv("fairness_gaps", final_m1ns_gaps)   # 包含自身區間與帶有 M1 溯源的成對比較
     run_m1ns.finish()
