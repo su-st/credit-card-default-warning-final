@@ -62,6 +62,11 @@ plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "De
 plt.rcParams["axes.unicode_minus"] = False
 
 
+def _safe_slug(text: str, fallback: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", str(text)).strip("_-")
+    return slug if slug else fallback
+
+
 def plot_group_metrics_with_ci(run, groups_df: pd.DataFrame, mname: str) -> None:
     if groups_df is None or groups_df.empty:
         return
@@ -70,11 +75,12 @@ def plot_group_metrics_with_ci(run, groups_df: pd.DataFrame, mname: str) -> None
         ("Recall", "Recall 下限", "Recall 上限", "Recall", "fairness_groups_recall_ci"),
         ("FPR", "FPR 下限", "FPR 上限", "FPR（誤報率）", "fairness_groups_fpr_ci"),
     ]
-    for policy in policies:
+    for idx, policy in enumerate(policies):
         sub = groups_df[groups_df["政策比較"] == policy].copy() if policy is not None else groups_df.copy()
         if sub.empty:
             continue
-        suffix = f"_{policy}" if policy is not None else ""
+        slug = _safe_slug(policy, f"p{idx}") if policy is not None else ""
+        suffix = f"_{slug}" if slug else ""
         title_p = f"（{policy}）" if policy is not None else ""
         labels = (
             sub["分組方式"].astype(str) + "｜" + sub["族群"].astype(str)
@@ -104,7 +110,6 @@ def plot_group_metrics_with_ci(run, groups_df: pd.DataFrame, mname: str) -> None
             fig.tight_layout()
             run.save_fig(f"{base}{suffix}", fig)
             plt.close(fig)
-
 
 def run_single_model(mname: str, sensitive: bool, df: pd.DataFrame, bill, scenario, parts, y) -> dict:
     """單獨執行一個模型的完整評估流程，並回傳相關結果供後續使用。"""
