@@ -537,10 +537,13 @@ def audit_sources(root=ROOT):
             raw_aliases = {'load_data', 'load_raw', 'split', 'train_test_split'}
             raw_modules = {'src.data'}
             builder_forbidden = {'final_test', 'outer_splits', 'nested_eval', 'open_sealed', 'dev_holdout', '_full_data'}
+            formal_readers = {'final_test': 'src/final_eval.py', 'outer_splits': 'src/stability_eval.py'}
             readers = {'read_csv', 'read_json', 'read_table', 'read_parquet', 'loadtxt', 'fromfile'}
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module in {'src.protocol', 'protocol'}:
                     builder_forbidden.update(a.asname or a.name for a in node.names if a.name in builder_forbidden)
+                    formal_readers.update({a.asname or a.name: formal_readers[a.name]
+                                           for a in node.names if a.name in formal_readers})
                 if isinstance(node, ast.ImportFrom) and node.module in {'src.data', 'data', 'sklearn.model_selection'}:
                     raw_aliases.update(a.asname or a.name for a in node.names if a.name in raw_aliases)
                 if isinstance(node, ast.ImportFrom) and node.module in {'pandas', 'numpy'}:
@@ -569,6 +572,8 @@ def audit_sources(root=ROOT):
                         reason = 'direct sealed/legacy handoff read'
                     if relative in {'src/model_freeze.py', 'experiments/00_build_model_freeze.py'} and name in builder_forbidden:
                         reason = 'model-freeze builder may only obtain L1 dev_data'
+                    if name in formal_readers and relative != formal_readers[name]:
+                        reason = 'formal data loader is restricted to its guarded evaluation entry'
                     if name == 'load_dotenv':
                         reason = 'experiment reads .env instead of process configuration'
                 if relative.startswith('experiments/') and isinstance(node, ast.Name) and isinstance(node.ctx,ast.Load) and node.id in {'test','y_test'}:
