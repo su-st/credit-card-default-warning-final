@@ -24,7 +24,9 @@ def describe(col: str, v) -> str:
     """把特徵和數值轉成行員看得懂的一句話。"""
     if col.startswith("PAY_AMT"):
         return f"{MONTH[int(col[7:])]}繳款 {v:,.0f} 元"
-    if col.startswith("PAY_"):
+    if col.startswith("PAY_") and col[4:].isdigit():
+        if isinstance(v, str):
+            return f"{MONTH[int(col[4:])]}繳款狀態（{v}）"
         m = MONTH[int(col[4:])]
         return f"{m}延遲繳款 {int(v)} 個月" if v > 0 else f"{m}繳款狀態（代碼 {int(v)}）"
     if col.startswith("BILL_AMT"):
@@ -36,6 +38,16 @@ def describe(col: str, v) -> str:
 def top_factors(model, X: pd.DataFrame, k: int = 3) -> list:
     """用 XGBoost 內建的 TreeSHAP 貢獻值，找出每位客戶推高風險的前 k 個原始特徵。
     （SHAP 負責人可改用 shap 套件，但輸出格式維持不變。）"""
+    from .frozen_methods import FrozenGroupedClassifier, delay_partition
+    if isinstance(model, FrozenGroupedClassifier):
+        labels = delay_partition(X, rules_freeze_id=model.rules_freeze_id)
+        rows = [[""] * k for _ in range(len(X))]
+        for label, submodel in model.models_.items():
+            mask = labels == label
+            if mask.any():
+                for position, factors in zip(np.flatnonzero(mask), top_factors(submodel, X.loc[mask], k)):
+                    rows[position] = factors
+        return rows
     if isinstance(model, GroupedModel):
         delayed = (X[list(model.pay_columns)] > 0).any(axis=1).to_numpy()
         rows = [[""] * k for _ in range(len(X))]
