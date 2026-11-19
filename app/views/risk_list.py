@@ -18,7 +18,7 @@ def _show(frame):
 
 def render(df, meta):
     st.header('每月風險名單')
-    st.caption('預警名單依本次政策決定並按風險排名顯示；瀏覽範圍不會改變預警名單。')
+    st.caption('預警名單依本次政策決定並按風險排名顯示，瀏覽範圍不會改變預警名單。')
     selected = df.loc[df['in_list'].eq(1)]
     if meta['mode'] == BACKTEST:
         summary = list_summary(df)
@@ -37,5 +37,5 @@ def render(df, meta):
     with st.expander('瀏覽範圍（不改變預警名單）'):
         n = st.slider('瀏覽前幾名', min_value=1, max_value=len(df),
                       value=min(max(len(selected), 50), len(df)), step=1, key='browse_count')
-        st.caption(f'瀏覽排名前 {n:,} 人；政策預警名單仍為 {len(selected):,} 人。')
+        st.caption(f'瀏覽排名前 {n:,} 人，政策預警名單仍為 {len(selected):,} 人。')
         _show(_table(df.head(n)))
