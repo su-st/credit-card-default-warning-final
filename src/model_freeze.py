@@ -6,9 +6,10 @@ validates saved artifacts. Neither entry point obtains test data.
 import argparse
 from copy import deepcopy
 from dataclasses import asdict, replace
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import re
+from time import perf_counter
 from types import SimpleNamespace
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -98,6 +99,31 @@ def entry_specs(candidates):
     return specs
 
 
+class _RunClock:
+    def __init__(self):
+        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.start = perf_counter()
+
+    def finish(self, timing, artifact_seconds, scope):
+        elapsed=perf_counter()-self.start
+        return dict(timing, artifact_seconds=artifact_seconds,
+                    wall_seconds=elapsed,
+                    started_at=self.started_at,
+                    finished_at=(datetime.fromisoformat(self.started_at)+timedelta(seconds=elapsed)).isoformat(),
+                    timestamp_basis='UTC start plus monotonic elapsed',
+                    measurement_scope=scope, final_telemetry_commit_excluded=True)
+
+
+def _finish_timing(run, timing, clock, artifact_seconds, scope):
+    # The final timing CSV/metadata/finish commit cannot measure its own duration.
+    timing = clock.finish(timing, artifact_seconds, scope)
+    _check_timing(timing)
+    run.update(training_timing=timing)
+    run.save_csv('training_timing', pd.DataFrame([json_value(timing)]))
+    run.finish()
+    return timing
+
+
 def _timing(record, fit_seconds, oof_seconds, model, environment):
     return dict(training_timing_id=record['model_id'], training_count=record['training_count'],
                 fit_seconds=fit_seconds, oof_seconds=oof_seconds, policy_seconds=0.,
@@ -109,9 +135,23 @@ def _timing(record, fit_seconds, oof_seconds, model, environment):
 
 
 def _check_timing(timing):
-    for key in ('fit_seconds','oof_seconds','policy_seconds','calibrator_fit_seconds'):
-        if not isinstance(timing[key], (int,float)) or not np.isfinite(timing[key]) or timing[key] < 0:
+    required={'fit_seconds','oof_seconds','policy_seconds','calibrator_fit_seconds','artifact_seconds','wall_seconds','started_at','finished_at'}
+    if not required <= timing.keys():
+        raise IntegrityError('Missing timing fields')
+    for key in ('fit_seconds','oof_seconds','policy_seconds','calibrator_fit_seconds','artifact_seconds','wall_seconds'):
+        if isinstance(timing[key],bool) or not isinstance(timing[key], (int,float)) or not np.isfinite(timing[key]) or timing[key] < 0:
             raise IntegrityError('Invalid timing field: '+key)
+    try:
+        start=datetime.fromisoformat(timing['started_at'])
+        finish=datetime.fromisoformat(timing['finished_at'])
+        if start.utcoffset() is None or finish.utcoffset() is None or finish < start:
+            raise ValueError('Timezone-aware ordered timestamps required')
+    except (TypeError,ValueError) as exc:
+        raise IntegrityError('Invalid timing timestamps') from exc
+    if timing['wall_seconds'] < timing['artifact_seconds']:
+        raise IntegrityError('Artifact duration exceeds wall duration')
+    if abs((finish-start).total_seconds()-timing['wall_seconds'])>0.01:
+        raise IntegrityError('Timing timestamps/wall duration mismatch')
     if (any(not np.isfinite(v) or v < 0 for v in timing.get('submodel_fit_seconds',{}).values())
             or timing.get('submodel_total_fit_seconds',0) != sum(timing.get('submodel_fit_seconds',{}).values())):
         raise IntegrityError('Invalid submodel timing')
@@ -162,24 +202,74 @@ def load_calibrator(registry, meta, record):
     return joblib.load(path), cross
 
 
-def _source_run(bundle, policy, *, calibrated=None, policy_seconds=0.):
+def _search_results(bundle, policy, result, frame):
+    rules=p.load_rules(bundle['run'].meta['rules_freeze_id'])
+    partition=result.get('partition')
+    if partition is None:
+        from ._protocol_runs import _partition
+        partition=_partition(frame,policy.partition_name)
+    score=bundle['oof'];y=frame['default'];bill=p.bill_at(frame,0)
+    final,info=p.apply_policy(score,policy,partition=partition)
+    common=dict(policy=policy,partition=partition,groups={policy.partition_name:partition},
+                bill=bill,scenario=rules.scenario)
+    raw=p.evaluate(y,pred=info['pred_raw'],**common)
+    capped=p.evaluate(y,score=score,pred=final,**common)
+    def tables(report):
+        return {key:table.astype(object).where(pd.notna(table),None).to_dict('records')
+                for key,table in report.items()}
+    return dict(kind='F6-E' if policy.selection=='group-cost' else 'F3b',
+                policy_id=policy.policy_id, policy_hash=policy.policy_hash,
+                partition_name=policy.partition_name, t0=result['t0'],
+                target_recall=result.get('target_recall'),
+                target_definition=rules.group_threshold['target_definition'] if 'target_recall' in result else None,
+                base_policy=asdict(result['base_policy']),
+                cap_triggered=info['名單上限是否觸發'], raw_results=tables(raw), final_results=tables(capped))
+
+
+def _save_search_evidence(run, result, summary):
+    table=result['candidates'].copy()
+    table['model_id']=run.meta['model_id']
+    table['run_id']=run.run_id
+    # E already has the search-time policy_id for every candidate. Keep it,
+    # and distinguish the source policy enriched with registry evidence.
+    table['source_policy_id']=run.meta['policy_id']
+    path=run.path/'search_candidates.csv'
+    with path.open('x',encoding='utf-8',newline='') as output:
+        table.to_csv(output,index=False,lineterminator='\n')
+    run.result_path.mkdir(parents=True,exist_ok=True)
+    public=run.result_path/'search_candidates.csv'
+    with public.open('xb') as output:
+        output.write(path.read_bytes())
+    evidence=dict(summary,candidates_path=run.registry.relative(path),
+                  candidates_sha256=file_hash(path),results_candidates_sha256=file_hash(public))
+    run.update(search_evidence=evidence,search_evidence_hash=content_hash(evidence))
+
+
+def _source_run(bundle, policy, *, calibrated=None, policy_seconds=0., search=None, frame=None, clock=None):
     registry, rules_id = bundle['run'].registry, bundle['run'].meta['rules_freeze_id']
-    run = p.start_run('L1', 'G2b policy source', model_id=bundle['record']['model_id'], rules_freeze_id=rules_id)
+    clock=clock or _RunClock()
+    run,artifact_seconds=timed_call(p.start_run,'L1','G2b policy source',
+        model_id=bundle['record']['model_id'],rules_freeze_id=rules_id)
     try:
-        run.bind_model(bundle['record'])
+        _,seconds=timed_call(run.bind_model,bundle['record']);artifact_seconds+=seconds
         timing = dict(bundle['timing'], policy_seconds=policy_seconds)
         if calibrated:
-            run.update(calibrator=calibrated, calibrator_hash=calibrated['calibrator_hash'],
-                       calibrator_record=calibrated['calibrator_record'])
+            _,seconds=timed_call(run.update,calibrator=calibrated,calibrator_hash=calibrated['calibrator_hash'],
+                                calibrator_record=calibrated['calibrator_record'])
+            artifact_seconds+=seconds
             timing.update(calibrator_fit_seconds=calibrated['calibrator_fit_seconds'],
                           crossfit_seconds=calibrated['crossfit_seconds'])
             policy = replace(policy, evidence={**policy.evidence, 'calibrator_hash':calibrated['calibrator_hash'],
                                                'crossfit_oof_sha256':calibrated['crossfit_oof_sha256']})
-        policy = run.record_policy(policy)
-        run.update(training_timing=timing, configuration=bundle['configuration'],
-                   model_source_run_id=bundle['run'].run_id, evaluation_kind='policy')
-        run.save_csv('training_timing', pd.DataFrame([json_value(timing)]))
-        run.finish()
+        policy,seconds=timed_call(run.record_policy,policy);artifact_seconds+=seconds
+        if search is not None:
+            summary,seconds=timed_call(_search_results,bundle,policy,search,frame)
+            timing['policy_seconds']+=seconds
+            _,seconds=timed_call(_save_search_evidence,run,search,summary);artifact_seconds+=seconds
+        _,seconds=timed_call(run.update,configuration=bundle['configuration'],
+                            model_source_run_id=bundle['run'].run_id,evaluation_kind='policy')
+        artifact_seconds+=seconds
+        _finish_timing(run,timing,clock,artifact_seconds,'policy_source')
         return run.run_id, policy
     except Exception as exc:
         if run.meta['status'] == 'running':
@@ -259,6 +349,8 @@ def _entry(spec, bundle, source):
                  model_source_run_id=bundle['run'].run_id, implementation_commit=bundle['run'].meta['git_commit'])
     if policy is not None:
         entry.update(policy_id=policy.policy_id, policy_hash=policy.policy_hash, protocol_policy=asdict(policy))
+    if 'search_evidence' in meta:
+        entry.update(search_evidence=meta['search_evidence'],search_evidence_hash=meta['search_evidence_hash'])
     return entry
 
 
@@ -290,21 +382,26 @@ def prepare(rules_freeze_id=fm.RULES_FREEZE_ID, *, manifest=None):
         raise IntegrityError('Training data hash differs from frozen rules')
     configs=configurations(rules);bundles={};token=uuid4().hex[:12]
     environment=execution_environment()
+    batch_clock=_RunClock()
     report_run=p.start_run('L1','G2b candidate recommendation only',
                            model_id=_model_id('M1-NS',configs['M1-NS'],token,rules.seed),rules_freeze_id=rules_freeze_id)
     try:
         for name, config in configs.items():
             model_id=_model_id(name,config,token,rules.seed)
-            run=p.start_run('L1','G2b measured model source: '+name,model_id=model_id,rules_freeze_id=rules_freeze_id)
+            clock=_RunClock()
+            run,artifact_seconds=timed_call(p.start_run,'L1','G2b measured model source: '+name,
+                model_id=model_id,rules_freeze_id=rules_freeze_id)
             try:
                 X,_=features(df,config,rules_freeze_id)
                 factory=lambda cfg=config:model_factory(cfg,rules_freeze_id)
                 oof,oof_seconds=timed_call(p.oof_predict,factory,X,df['default'],folds=rules.cv['n_splits'],seed=rules.cv['random_state'])
                 model,fit_seconds=timed_call(factory().fit,X,df['default'])
-                record=run.attach_model(model,X,df['default'],oof,seed=rules.cv['random_state'])
+                record,seconds=timed_call(run.attach_model,model,X,df['default'],oof,seed=rules.cv['random_state'])
+                artifact_seconds+=seconds
                 timing=_timing(record,fit_seconds,oof_seconds,model,environment)
-                run.update(training_timing=timing,configuration=config,evaluation_kind='score_only')
-                run.save_csv('training_timing',pd.DataFrame([json_value(timing)]));run.finish()
+                _,seconds=timed_call(run.update,configuration=config,evaluation_kind='score_only')
+                artifact_seconds+=seconds
+                timing=_finish_timing(run,timing,clock,artifact_seconds,'model_build')
                 bundles[name]=dict(run=run,record=record,timing=timing,configuration=config,model=model,X=X,oof=oof,policies={})
             except Exception as exc:
                 if run.meta['status']=='running':run.fail(f'{type(exc).__name__}: {exc}')
@@ -315,22 +412,30 @@ def prepare(rules_freeze_id=fm.RULES_FREEZE_ID, *, manifest=None):
             raise IntegrityError('Candidate fold assignments differ')
         for name,b in bundles.items():
             if name.startswith('lag'):continue
+            policy_clock=_RunClock()
             formal,seconds=timed_call(p.choose_threshold,df['default'],b['oof'],p.bill_at(df,0),rules.scenario)
             policies={'s':p.Policy.single(.5,None),'n':p.Policy.top_n(rules.g2b['policy']['rate']),'c':formal['政策物件']}
             for key, policy in policies.items():
-                b['policies'][key]=_source_run(b,policy,policy_seconds=seconds if key=='c' else 0.)
+                b['policies'][key]=_source_run(b,policy,policy_seconds=seconds if key=='c' else 0.,
+                                               clock=policy_clock if key=='c' else None)
         for partition_name in rules.group_threshold['partitions']:
             from ._protocol_runs import _partition
+            search_clock=_RunClock()
             result,seconds=timed_call(fm.search_group_thresholds,df['default'],base['oof'],p.bill_at(df,0),
                 _partition(df,partition_name),partition_name=partition_name,rules_freeze_id=rules_freeze_id)
-            base['policies'][partition_name]=_source_run(base,result['policy'],policy_seconds=seconds)
+            base['policies'][partition_name]=_source_run(base,result['policy'],policy_seconds=seconds,
+                search=result,frame=df,clock=search_clock)
+        search_clock=_RunClock()
         result,seconds=timed_call(fm.search_no_delay_threshold,df,base['oof'],rules_freeze_id=rules_freeze_id)
-        base['policies']['e']=_source_run(base,result['policy'],policy_seconds=seconds)
+        base['policies']['e']=_source_run(base,result['policy'],policy_seconds=seconds,
+            search=result,frame=df,clock=search_clock)
         calibration,calibrated=_save_calibrator(registry,base['record'],df['default'],base['oof'],rules)
         cal_policies={}
+        policy_clock=_RunClock()
         formal,seconds=timed_call(p.choose_threshold,df['default'],calibrated,p.bill_at(df,0),rules.scenario)
         for key,policy in {'s':p.Policy.single(.5,None),'n':p.Policy.top_n(rules.g2b['policy']['rate']),'c':formal['政策物件']}.items():
-            cal_policies[key]=_source_run(base,policy,calibrated=calibration,policy_seconds=seconds if key=='c' else 0.)
+            cal_policies[key]=_source_run(base,policy,calibrated=calibration,policy_seconds=seconds if key=='c' else 0.,
+                                           clock=policy_clock if key=='c' else None)
         entries=[]
         for spec in entry_specs(rules.g2b['eligible_candidates']):
             b=bundles[spec['model_key']]
@@ -345,6 +450,7 @@ def prepare(rules_freeze_id=fm.RULES_FREEZE_ID, *, manifest=None):
             bundles[name]['engineering']=engineering_check(bundles[name],df,rules_freeze_id)
         report=_candidates_report(bundles,df,rules)
         try:
+            artifact_start=perf_counter()
             report_run.bind_model(base['record']);report_run.record_policy(p.Policy.top_n(rules.g2b['policy']['rate']))
             report_run.save_csv('g2b_candidates',report)
             draft=dict(schema_version=2,status='prepared',rules_freeze_id=rules_freeze_id,
@@ -358,8 +464,8 @@ def prepare(rules_freeze_id=fm.RULES_FREEZE_ID, *, manifest=None):
             path=registry.outputs/'drafts'/report_run.run_id/'manifest.json'
             path.parent.mkdir(parents=True,exist_ok=False)
             write_json(path,draft)
-            report_run.update(draft_path=registry.relative(path),draft_sha256=file_hash(path),training_timing=base['timing'])
-            report_run.finish()
+            report_run.update(draft_path=registry.relative(path),draft_sha256=file_hash(path))
+            _finish_timing(report_run,base['timing'],batch_clock,perf_counter()-artifact_start,'batch_summary')
             return path
         except Exception as exc:
             if report_run.meta['status']=='running':report_run.fail(f'{type(exc).__name__}: {exc}')
@@ -367,6 +473,71 @@ def prepare(rules_freeze_id=fm.RULES_FREEZE_ID, *, manifest=None):
     except Exception as exc:
         if report_run.meta['status']=='running':report_run.fail(f'{type(exc).__name__}: {exc}')
         raise
+
+
+def _check_search_evidence(registry, entry, source):
+    expected={'f6-e':'F6-E','f3b-sex':'F3b','f3b-age':'F3b','f3b-sex-age':'F3b'}
+    if entry['entry_id'] not in expected:
+        return
+    meta=source['run'];evidence=entry.get('search_evidence')
+    required={'kind','policy_id','policy_hash','partition_name','t0','target_recall',
+              'base_policy','raw_results','final_results','cap_triggered',
+              'candidates_path','candidates_sha256','results_candidates_sha256'}
+    if not isinstance(evidence,dict) or not required<=evidence.keys():
+        raise IntegrityError('Missing threshold search evidence')
+    digest=content_hash(evidence)
+    if (evidence!=meta.get('search_evidence') or digest!=entry.get('search_evidence_hash')
+            or digest!=meta.get('search_evidence_hash')):
+        raise IntegrityError('Threshold search evidence hash mismatch')
+    private=registry.runs/entry['source_run_id']/'search_candidates.csv'
+    public=registry.results/entry['source_run_id']/'search_candidates.csv'
+    if registry.path(evidence['candidates_path'])!=private:
+        raise IntegrityError('Search candidates source path mismatch')
+    for path,key in [(private,'candidates_sha256'),(public,'results_candidates_sha256')]:
+        if not path.is_file() or file_hash(path)!=evidence[key]:
+            raise IntegrityError('Search candidates missing or hash mismatch')
+    if evidence['candidates_sha256']!=evidence['results_candidates_sha256']:
+        raise IntegrityError('Search candidates copies differ')
+    policy=source['threshold']['protocol_policy']
+    if (evidence['kind']!=expected[entry['entry_id']] or
+            any(evidence[key]!=meta[key] for key in ('policy_id','policy_hash')) or
+            evidence['partition_name']!=policy['partition_name'] or
+            evidence['t0']!=evidence['base_policy']['threshold']):
+        raise IntegrityError('Search policy metadata mismatch')
+    table=pd.read_csv(private,converters={key:float for key in ('threshold','target_recall','raw_cost','final_cost')})
+    if (table.empty or not {'selected','threshold','source_policy_id','run_id','model_id'}<=set(table)
+            or not table['selected'].isin([True,False]).all()
+            or not table['source_policy_id'].eq(meta['policy_id']).all()
+            or not table['run_id'].eq(meta['run_id']).all()
+            or not table['model_id'].eq(meta['model_id']).all()):
+        raise IntegrityError('Invalid search candidates identities')
+    selected=table[table['selected']]
+    if evidence['kind']=='F6-E':
+        if (evidence['target_recall'] is not None or len(selected)!=1
+                or not table.threshold.le(evidence['t0']).all()
+                or selected.threshold.iloc[0]!=policy['thresholds']['無延遲']
+                or evidence['t0']!=policy['thresholds']['有延遲']):
+            raise IntegrityError('Invalid E search evidence')
+    elif (not isinstance(evidence['target_recall'],(int,float))
+          or not np.isfinite(evidence['target_recall']) or not 0<=evidence['target_recall']<=1
+          or len(selected)!=len(policy['thresholds']) or selected.group.duplicated().any()
+          or dict(zip(selected.group,selected.threshold))!=policy['thresholds']
+          or not table.target_recall.eq(evidence['target_recall']).all()):
+        raise IntegrityError('Invalid F3b search evidence')
+    if evidence['kind']=='F3b':
+        rules=registry.load_rules(meta['rules_freeze_id'])
+        oof=pd.read_csv(registry.path(source['model_record']['model_path']).parent/'oof.csv',
+                        converters={'oof_score':float})
+        target=float((oof.loc[oof.y==1,'oof_score']>=evidence['t0']).mean())
+        if (evidence.get('target_definition')!=rules['group_threshold']['target_definition']
+                or evidence['target_recall']!=target):
+            raise IntegrityError('F3b target differs from source OOF')
+    for key in ('raw_results','final_results'):
+        report=evidence[key]
+        if not {'overall','groups','gaps'}<=report.keys() or len(report['overall'])!=1:
+            raise IntegrityError('Missing before/after cap search results')
+        if report['overall'][0]['policy_id']!=meta['policy_id']:
+            raise IntegrityError('Search result policy mismatch')
 
 
 def validate_entry(registry, freeze, entry, source):
@@ -390,6 +561,7 @@ def validate_entry(registry, freeze, entry, source):
     if entry['configuration']!=meta.get('configuration') or entry['training_timing']!=meta.get('training_timing'):
         raise IntegrityError('Measured source configuration/timing mismatch')
     model_source=registry.load_run(entry['model_source_run_id'])['run']
+    _check_timing(model_source['training_timing'])
     if entry['implementation_commit']!=model_source['git_commit']:
         raise IntegrityError('Implementation commit mismatch')
     models = (source['model'].models_.values() if hasattr(source['model'],'models_') else [source['model']])
@@ -411,6 +583,7 @@ def validate_entry(registry, freeze, entry, source):
         if entry['protocol_policy']!=source['threshold']['protocol_policy']:
             raise IntegrityError('Frozen policy contents mismatch')
     else:raise IntegrityError('Unknown frozen evaluation kind')
+    _check_search_evidence(registry,entry,source)
     if entry['score_version']=='calibrated':
         if entry.get('calibrator')!=meta.get('calibrator'):
             raise IntegrityError('Frozen calibrator source mismatch')

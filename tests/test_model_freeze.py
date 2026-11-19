@@ -1,5 +1,6 @@
 """C9b-1 synthetic end-to-end preparation. Real data and test entry points fail."""
 from copy import deepcopy
+from datetime import datetime
 import importlib.util
 from pathlib import Path
 
@@ -64,6 +65,9 @@ def test_prepare_builds_real_sources_no_model_freeze(prepared):
         assert record['training_count']==len(frame)
         assert bundle['run']['status']=='complete'
         timing=entry['training_timing'];mf._check_timing(timing)
+        assert timing['wall_seconds']>=timing['artifact_seconds']>0
+        assert datetime.fromisoformat(timing['started_at']).utcoffset() is not None
+        assert datetime.fromisoformat(timing['finished_at'])>=datetime.fromisoformat(timing['started_at'])
         assert timing['environment']['logical_cpus']
         assert 'threadpools' in timing['environment'] and 'model_threads' in timing
         if entry['evaluation_kind']=='score_only':
@@ -92,6 +96,71 @@ def test_prepare_builds_real_sources_no_model_freeze(prepared):
     report=pd.read_csv(root/'results'/draft['build_run_id']/'g2b_candidates.csv')
     assert set(report.candidate)==set(rules['g2b']['eligible_candidates'])
     assert report[['reload_ok','features_ok','shap_ok']].all().all(),report.engineering_error
+
+
+def test_search_evidence_is_saved_and_required(prepared):
+    (root,frame,_),path=prepared
+    draft=read_json(path);registry=Registry(root)
+    for entry in draft['entries']:
+        if entry['entry_id'] not in {'f6-e','f3b-sex','f3b-age','f3b-sex-age'}:
+            continue
+        source=registry.load_run(entry['source_run_id'])
+        evidence=entry['search_evidence']
+        assert evidence==source['run']['search_evidence']
+        assert content_hash(evidence)==entry['search_evidence_hash']
+        private=registry.path(evidence['candidates_path'])
+        public=root/'results'/entry['source_run_id']/'search_candidates.csv'
+        assert private.read_bytes()==public.read_bytes()
+        table=pd.read_csv(private,converters={key:float for key in ('threshold','target_recall','raw_cost','final_cost')})
+        assert table.selected.any()
+        policy=source['threshold']['protocol_policy']
+        from src._protocol_runs import _partition
+        partition=(_partition(frame,policy['partition_name']) if entry['entry_id']!='f6-e'
+                   else mf.fm.delay_partition(frame,rules_freeze_id='synthetic-rules'))
+        oof=pd.read_csv(registry.path(source['model_record']['model_path']).parent/'oof.csv',converters={'oof_score':float})
+        score=pd.Series(oof['oof_score'].to_numpy(),index=frame.index)
+        final,info=p.apply_policy(score,p.Policy(**policy),partition=partition)
+        assert evidence['cap_triggered']==info['名單上限是否觸發']
+        assert evidence['raw_results']['overall'] and evidence['final_results']['overall']
+        if entry['entry_id']=='f6-e':
+            assert evidence['target_recall'] is None
+            selected=table[table.selected].iloc[0]
+            assert selected.raw_count==int(info['pred_raw'].sum())
+            assert selected.final_count==int(final.sum())
+            assert selected.raw_cost==evidence['raw_results']['overall'][0]['總成本']
+            assert selected.final_cost==evidence['final_results']['overall'][0]['總成本']
+        else:
+            assert evidence['target_recall']==float((score[frame.default==1]>=evidence['t0']).mean())
+        for target in (private,public):
+            original=target.read_bytes()
+            try:
+                for corrupt in (False,True):
+                    if corrupt:target.write_bytes(original+b'corrupt')
+                    else:target.unlink()
+                    with pytest.raises(IntegrityError,match='candidates'):
+                        mf.validate_entry(registry,draft,entry,source)
+                    target.write_bytes(original)
+            finally:target.write_bytes(original)
+        altered=deepcopy(entry);altered.pop('search_evidence')
+        with pytest.raises(IntegrityError,match='search evidence'):
+            mf.validate_entry(registry,draft,altered,source)
+
+
+def test_timing_requires_complete_valid_measurements():
+    timing=dict(fit_seconds=1.,oof_seconds=2.,policy_seconds=0.,calibrator_fit_seconds=0.,
+                artifact_seconds=.1,wall_seconds=3.1,started_at='2026-11-19T10:00:00+08:00',
+                finished_at='2026-11-19T10:00:03.100000+08:00',
+                environment={'packages':{'pytest':'fixed'},'logical_cpus':1})
+    mf._check_timing(timing)
+    for key in ('artifact_seconds','wall_seconds','started_at','finished_at'):
+        bad=deepcopy(timing);bad.pop(key)
+        with pytest.raises(IntegrityError):mf._check_timing(bad)
+    for key in ('artifact_seconds','wall_seconds'):
+        for value in (-1,float('nan'),float('inf'),True):
+            with pytest.raises(IntegrityError):mf._check_timing(dict(timing,**{key:value}))
+    for value in ('invalid','2026-11-19T10:00:03','2026-11-19T09:59:59+08:00'):
+        with pytest.raises(IntegrityError):mf._check_timing(dict(timing,finished_at=value))
+    with pytest.raises(IntegrityError):mf._check_timing(dict(timing,artifact_seconds=4.))
 
 
 def test_freeze_explicit_approval_readback_and_immutable(prepared,monkeypatch):
