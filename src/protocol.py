@@ -58,6 +58,9 @@ def _freeze(model_freeze_id):
     if record["model_freeze_id"] != model_freeze_id or not record["approved_at"]:
         raise IntegrityError("Approved model freeze is required")
     _registry().load_rules(record["rules_freeze_id"])
+    if record.get("schema_version") == 2:
+        for row in record["entries"]:
+            _registry().frozen_entry(model_freeze_id, row["entry_id"])
     return record
 
 
@@ -533,8 +536,11 @@ def audit_sources(root=ROOT):
             tree = ast.parse(file.read_text(encoding='utf-8'))
             raw_aliases = {'load_data', 'load_raw', 'split', 'train_test_split'}
             raw_modules = {'src.data'}
+            builder_forbidden = {'final_test', 'outer_splits', 'nested_eval', 'open_sealed', 'dev_holdout', '_full_data'}
             readers = {'read_csv', 'read_json', 'read_table', 'read_parquet', 'loadtxt', 'fromfile'}
             for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom) and node.module in {'src.protocol', 'protocol'}:
+                    builder_forbidden.update(a.asname or a.name for a in node.names if a.name in builder_forbidden)
                 if isinstance(node, ast.ImportFrom) and node.module in {'src.data', 'data', 'sklearn.model_selection'}:
                     raw_aliases.update(a.asname or a.name for a in node.names if a.name in raw_aliases)
                 if isinstance(node, ast.ImportFrom) and node.module in {'pandas', 'numpy'}:
@@ -561,6 +567,8 @@ def audit_sources(root=ROOT):
                         reason = 'direct data/test split bypasses protocol'
                     if name in readers and any(unsafe(arg) for arg in node.args):
                         reason = 'direct sealed/legacy handoff read'
+                    if relative in {'src/model_freeze.py', 'experiments/00_build_model_freeze.py'} and name in builder_forbidden:
+                        reason = 'model-freeze builder may only obtain L1 dev_data'
                     if name == 'load_dotenv':
                         reason = 'experiment reads .env instead of process configuration'
                 if relative.startswith('experiments/') and isinstance(node, ast.Name) and isinstance(node.ctx,ast.Load) and node.id in {'test','y_test'}:

@@ -115,6 +115,11 @@ def validate_policy_record(registry, meta, record, threshold):
         raise IntegrityError("Holdout policy cannot mix with formal policy")
     if meta["level"] in {"L2", "L3"} and threshold["source_level"] == "L1-H":
         raise IntegrityError("Formal model cannot use a development policy")
+    if "calibrator" in meta:
+        evidence = policy.evidence
+        if (evidence.get("calibrator_hash") != meta["calibrator"]["calibrator_hash"]
+                or evidence.get("crossfit_oof_sha256") != meta["calibrator"]["crossfit_oof_sha256"]):
+            raise IntegrityError("Policy lacks matching cross-fitted calibration evidence")
     return policy
 
 
@@ -153,10 +158,21 @@ def load_protocol_run(registry, run_id, *, allow_running=False):
         if meta["level"] == "L3" and meta["model_hash"] == chosen["model_hash"]:
             raise IntegrityError("L3 must use its actual retrained model, not the frozen model hash")
         if meta["level"] == "L2":
-            for key in ("model_id", "model_hash", "params_hash", "policy_id", "policy_hash"):
+            keys = ("model_id", "model_hash", "params_hash") if chosen.get("evaluation_kind") == "score_only" else ("model_id", "model_hash", "params_hash", "policy_id", "policy_hash")
+            if chosen.get("evaluation_kind") == "score_only" and ("policy_id" in meta or (path / "threshold.json").exists()):
+                raise IntegrityError("Score-only run cannot have policy artifacts")
+            if meta.get("calibrator") != chosen.get("calibrator"):
+                raise IntegrityError("Frozen calibrator mismatch")
+            for key in keys:
                 if meta[key] != chosen[key]:
                     raise IntegrityError(f"L2 frozen {key} mismatch")
     model, _ = registry.load_model(record)
+    if "calibrator" in meta:
+        from .model_freeze import load_calibrator
+        if (meta.get("calibrator_hash") != meta["calibrator"]["calibrator_hash"]
+                or meta.get("calibrator_record") != meta["calibrator"]["calibrator_record"]):
+            raise IntegrityError("Calibrator/run identity mismatch")
+        load_calibrator(registry, meta["calibrator"], record)
     threshold = None
     policy = None
     if "policy_id" in meta:

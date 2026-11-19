@@ -11,6 +11,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from . import protocol as p
 from .registry import IntegrityError, content_hash
+from .training_time import timed_call
 
 RULES_FREEZE_ID = 'g2a-20261116'
 # Formula contracts, not tunable settings. Never eval strings from a JSON file.
@@ -123,6 +124,12 @@ class FrozenGroupedClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, *, rules_freeze_id=RULES_FREEZE_ID):
         self.rules_freeze_id = rules_freeze_id
 
+    def __getstate__(self):
+        # Timing belongs in the run record, never in computational model bytes.
+        state = super().__getstate__().copy()
+        state.pop('fit_seconds_by_group_', None)
+        return state
+
     def fit(self, X, y):
         rules = _rules(self.rules_freeze_id)
         if list(X) != _candidate(rules, '09 D')['features']:
@@ -132,13 +139,15 @@ class FrozenGroupedClassifier(ClassifierMixin, BaseEstimator):
         if not X.index.equals(y.index):
             raise ValueError('X/y customer IDs differ')
         partition = delay_partition(X, rules_freeze_id=self.rules_freeze_id)
-        models = {}
+        models, timings = {}, {}
         for label in ('無延遲', '有延遲'):
             mask = partition == label
             if y.loc[mask].nunique() != 2:
                 raise ValueError(f'D training group {label} requires both classes')
-            models[label] = p.make_model('XGBoost', params=rules.dev_base['params']).fit(X.loc[mask], y.loc[mask])
+            models[label], timings[label] = timed_call(
+                p.make_model('XGBoost', params=rules.dev_base['params']).fit, X.loc[mask], y.loc[mask])
         self.models_ = models
+        self.fit_seconds_by_group_ = timings
         self.columns_ = list(X)
         self.classes_ = np.array([0, 1])
         self.n_features_in_ = X.shape[1]
