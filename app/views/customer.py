@@ -32,7 +32,7 @@ def _show_generation(record):
         detail = "TAIDE 呼叫失敗（請確認本機服務或逾時）" if "呼叫失敗" in how else reason
         st.warning(f"未採用 TAIDE 原始輸出的原因：{detail}")
     else:
-        st.caption("已通過草稿品質檢查；仍需行員檢查內容。")
+        st.caption("已通過草稿品質檢查，仍需行員檢查內容。")
     # 未通過的原始輸出不呈現，避免不合格內容被誤用；顯示採用文字與原因即可。
 
 
@@ -57,7 +57,7 @@ def _show_customer_summary(df, c, meta):
         list_position = int((selected & df["risk_rank"].le(rank)).sum())
         st.caption(f"名單內第 {list_position:,} 名（共 {count:,} 人），全體第 {rank:,} 名。")
     else:
-        st.caption(f"名單外；本期預警名單共 {count:,} 人。")
+        st.caption(f"名單外，本期預警名單共 {count:,} 人。")
     if meta.get("threshold") is not None:
         cap = meta.get("max_list_rate")
         cap_text = "不限制" if cap is None else f"{cap:.0%}"
@@ -120,7 +120,7 @@ def render(df, meta):
         _show_generation(record)
 
     st.subheader("關懷訊息草稿（給客戶）")
-    st.caption("草稿品質檢查與 LINE 發送檢查分開；只有固定模板通過發送檢查後才可發送。")
+    st.caption("草稿品質檢查與 LINE 發送檢查分開，只有固定模板通過發送檢查後才可發送。")
     if st.button("產生訊息草稿"):
         record = explain.generate("care", facts)
         message, send_reason = _prepare_care(record)
@@ -140,7 +140,7 @@ def render(df, meta):
     msg = st.text_area("行員可直接修改內容", key="customer_message", height=120,
                        on_change=_invalidate_confirmation)
     reason = explain.check_care(msg)
-    st.caption("目前僅允許固定模板內容；其他改寫須另行審核。修改後請重新確認。")
+    st.caption("目前僅允許固定模板內容，其他改寫須另行審核。修改後請重新確認。")
     if msg and reason:
         st.warning(f"訊息未通過檢查：{reason}。請重新產生訊息草稿以使用固定模板。")
     ok = st.checkbox("我已確認訊息內容正確", key="customer_confirmed",
@@ -152,7 +152,7 @@ def render(df, meta):
         try:
             result = line_push.push_text(msg, approved_text=st.session_state["customer_approval"][1])
         except Exception:
-            outcome = ("error", "LINE 發送失敗，請檢查設定；請勿直接重複發送。")
+            outcome = ("error", "LINE 發送失敗，請檢查設定。請勿直接重複發送。")
         else:
             if simulation:
                 outcome = ("info", result)
@@ -164,4 +164,4 @@ def render(df, meta):
     if outcome is not None:
         level, message = outcome
         getattr(st, level)(message)
-        st.caption("本次確認已失效；再次操作前請重新檢查訊息並勾選確認。")
+        st.caption("本次確認已失效，再次操作前請重新檢查訊息並勾選確認。")

@@ -90,7 +90,7 @@ def _show_results(groups, gaps, group):
     ]
     display["樣本提醒"] = small.map({True: "小樣本，解讀以區間為準", False: ""})
     st.dataframe(display, hide_index=True, width="stretch")
-    st.caption("Recall 與 FNR 的分母是實際違約人數；FPR 的分母是實際未違約人數。分母為 0 的族群不納入對應差距計算。")
+    st.caption("Recall 與 FNR 的分母是實際違約人數，FPR 的分母是實際未違約人數。分母為 0 的族群不納入對應差距計算。")
     st.bar_chart(t.set_index("族群")[["Recall", "FPR"]], stack=False)
 
 
@@ -174,7 +174,7 @@ def _show_model_comparison(group):
 def render(df, meta):
     """C6 平台入口：模擬模式不讀取政策或計算回測指標。"""
     if meta.get("mode") != BACKTEST:
-        st.info("公平性監控僅在歷史回測模式顯示；模擬資料沒有實際標籤，無法計算族群錯誤率。")
+        st.info("公平性監控僅在歷史回測模式顯示。模擬資料沒有實際標籤，無法計算族群錯誤率。")
         return
     st.header("公平性監控")
     if df.empty or "actual_default" not in df or not df["actual_default"].isin([0, 1]).all():
@@ -184,7 +184,7 @@ def render(df, meta):
         st.info("目前僅支援 L1-H 開發資料，正式資料尚未開放。")
         return
 
-    st.caption("歷史回測｜L1-H 開發資料，非正式結果；僅供介面與功能測試。")
+    st.caption("歷史回測｜L1-H 開發資料，非正式結果，僅供介面與功能測試。")
     try:
         evaluation = _evaluate_backtest(df, meta)
     except Exception as exc:
