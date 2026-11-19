@@ -159,7 +159,8 @@ def run_stability_eval(model_freeze_id, *, resume=None):
                             calibrator,_=mf.load_calibrator(run.registry,calibration,bundle['record'])
                             bundle['calibrated_test']=pd.Series(calibrator.predict(score),index=score.index)
                         score=bundle['calibrated_test']
-                    evaluate_entry(run,entry,test,score,rules,timing,raw_score=bundle['test_score'])
+                    evaluate_entry(run,entry,test,score,rules,timing,
+                                   raw_score=bundle['test_score'],gap_cache=batch.gap_cache)
                     run.finish();batch.done(key,run)
                 except Exception as exc:
                     if run.meta['status']=='running':run.fail(f'{type(exc).__name__}: {exc}')

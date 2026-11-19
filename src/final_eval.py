@@ -3,7 +3,7 @@ import pandas as pd
 
 from . import model_freeze as mf, protocol as p
 from ._evaluation import (Batch, COMPARISONS, check_test, cli, evaluate_entry,
-                          gap_tables, partitions, policy_partition, score_model, validate_release)
+                          gap_tables, partitions, policy_partition, read_result_csv, score_model, validate_release)
 from .data import age_group
 from .export import EDU, MAR, SEX, top_factors, verify_predictions
 from .registry import IntegrityError, content_hash, file_hash, read_json
@@ -55,7 +55,7 @@ def fairness_comparison(batch, freeze, entries, frame, scores, rules, label):
             folder=run.registry.results/source_id
             assign=dict(模型=label,政策比較=cname,model_id=run.meta['model_id'],run_id=run.run_id)
             for filename,target in [('overall',overall),('groups',groups),('gaps',points),('gap_ci',intervals)]:
-                target.append(pd.read_csv(folder/(filename+'.csv')).loc[:,base_columns[filename]].assign(**assign))
+                target.append(read_result_csv(folder/(filename+'.csv')).loc[:,base_columns[filename]].assign(**assign))
             policy=p.Policy(**entry['protocol_policy'])
             flags[policy_key]=p.apply_policy(scores[entry['model_hash']],policy)[0]
         if label=='M1-NS':
@@ -64,7 +64,8 @@ def fairness_comparison(batch, freeze, entries, frame, scores, rules, label):
             for policy_key,cname in COMPARISONS.items():
                 m1_entry=entries['rq1-m1-'+policy_key]
                 m1_pred=p.apply_policy(scores[m1_entry['model_hash']],p.Policy(**m1_entry['protocol_policy']))[0]
-                pair=gap_tables(frame['default'],m1_pred,partitions(frame),rules,pred_b=flags[policy_key])
+                pair=gap_tables(frame['default'],m1_pred,partitions(frame),rules,
+                                pred_b=flags[policy_key],cache=batch.gap_cache)
                 intervals.append(pair.assign(模型='M1-NS 減 M1',政策比較=cname,m1_run_id=m1_id,
                     m1_model_id=m1_meta['model_id'],model_id=run.meta['model_id'],run_id=run.run_id))
         for filename,tables in [('fairness_overall',overall),('fairness_groups',groups),
@@ -120,7 +121,8 @@ def run_final_eval(model_freeze_id, *, resume=None):
                 run.update(comparison_id=entry['comparison_id'],training_timing=entry['training_timing'],
                     model_source_run_id=entry['model_source_run_id'],
                     policy_source_run_id=entry['source_run_id'],test_ids_hash=content_hash(sorted(frame.index.tolist())))
-                evaluate_entry(run,entry,frame,score,rules,entry['training_timing'],raw_score=scores[h])
+                evaluate_entry(run,entry,frame,score,rules,entry['training_timing'],
+                               raw_score=scores[h],gap_cache=batch.gap_cache)
                 if key=='platform-c':export_platform(run,entry,frame,score,features[h],sources[key]['model'])
                 run.finish();batch.done(key,run)
             except Exception as exc:

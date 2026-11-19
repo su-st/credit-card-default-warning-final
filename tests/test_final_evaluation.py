@@ -103,6 +103,10 @@ def test_l2_complete_batch_reports_handoff_and_fairness_reader(release,monkeypat
     assert fairness['source']['m1_run_id']==tasks['fairness-M1']['run_id']
     assert len(fairness['paired'])==30
     assert set(fairness['models'])=={'M1','M1-NS'}
+    for filename in ('table_4_1_l2.csv','table_4_3_l2.csv'):
+        rows=ev.read_result_csv(root/'results'/summary/filename)
+        candidate=rows[rows.entry_id.str.startswith('f6-05-')]
+        assert not candidate.empty and candidate.model_key.eq('05').all()
     assert list(fairness['models']['M1']['groups'])==[*p.GROUP_COLUMNS,'模型','政策比較','run_id','model_id']
     assert list(fairness['models']['M1-NS']['gaps_ci'])==[
         '指標','估計值','下限','上限','有效重抽','無效重抽','可靠','比較','模型','政策比較','分組方式',
@@ -236,7 +240,7 @@ def test_new_loaders_are_included_in_source_gate(tmp_path):
     assert p.audit_sources()==[]
 
 
-def _mock_reports(run,entry,frame,score,rules,timing,*,raw_score=None):
+def _mock_reports(run,entry,frame,score,rules,timing,*,raw_score=None,gap_cache=None):
     """Mock costly report rendering only, keep actual L3 fit/OOF/policies/registry."""
     assert len(frame)==6000 and score.index.equals(frame.index)
     if entry['evaluation_kind']=='score_only':
@@ -313,6 +317,10 @@ def test_l3_ten_seeds_retrain_and_reselect_with_shared_fit_evidence(release,monk
     frame=raw[raw.entry_id.eq(row.entry_id)]
     assert np.isclose(row['std'],frame.fit_seconds.std(ddof=1))
     assert not {'policy_id','model_id'} & set(table.columns)
+    for filename in ('stability_by_seed.csv','stability_summary.csv'):
+        rows=ev.read_result_csv(root/'results'/summary/filename)
+        candidate=rows[rows.entry_id.str.startswith('f6-05-')]
+        assert not candidate.empty and candidate.model_key.eq('05').all()
     for file in (root/'results'/summary).glob('*.csv'):
         assert not {'customer_id','risk_score','actual_default'} & set(pd.read_csv(file))
 

@@ -22,6 +22,25 @@ COMPARISONS = {'s': '共同門檻0.5', 'n': '固定名單前20%', 'c': '正式�
 REPORT_RATES = tuple(i/100 for i in range(5, 51, 5))
 
 
+def read_result_csv(path):
+    """Preserve identifiers verbatim, including leading zeros and literal NA.
+
+    Numeric metrics retain pandas' normal numeric/null parsing. Customer-level
+    OOF/fold files use their existing readers, not this aggregate-table reader.
+    """
+    frame = pd.read_csv(path)
+    text = {'model_key', 'candidate', 'level', 'role', 'score_version', 'policy_kind'}
+    identifiers = [name for name in frame if name in text or
+                   name.endswith(('_id', '_hash', '_sha256'))]
+    if identifiers:
+        # Use a separate text read so NA-like identifiers stay literal without
+        # disabling the existing null/numeric parsing of undefined metrics.
+        literal = pd.read_csv(path, usecols=identifiers, dtype=str, keep_default_na=False)
+        for name in identifiers:
+            frame[name] = literal[name]
+    return frame
+
+
 def validate_release(model_freeze_id):
     """Validate the whole approved inventory before either data loader is called."""
     registry = p._registry()
@@ -69,7 +88,7 @@ def validate_release(model_freeze_id):
     if research!=draft['entries'] or file_hash(registry.path(draft['candidate_report']))!=draft['candidate_report_sha256']:
         raise IntegrityError('Approved research inventory/candidate evidence changed')
     if platform!='M1-NS':
-        report=pd.read_csv(registry.path(draft['candidate_report']))
+        report=read_result_csv(registry.path(draft['candidate_report']))
         selected=report.loc[report.candidate==platform]
         if len(selected)!=1 or not bool(selected.iloc[0].d7_eligible) or not bool(selected.iloc[0].engineering_ready):
             raise IntegrityError('Approved platform candidate lacks eligibility/engineering evidence')
@@ -177,13 +196,39 @@ def classification_table(counts):
     return pd.DataFrame([*rows, macro])
 
 
-def gap_tables(y, pred, groups, rules, *, pred_b=None):
+def gap_tables(y, pred, groups, rules, *, pred_b=None, cache=None):
+    """Exact bootstrap memoization in a caller-owned, single-batch cache.
+
+    Hash ordered customer IDs and values, all partition names/order/content,
+    both lists (including the absence of pred_b), n_boot and seed. Never cache
+    across batches or expose the stored DataFrame to mutation by a caller.
+    """
     bootstrap = rules.d8['bootstrap']
-    return pd.concat([p.gap_ci(y, pred, group, n_boot=bootstrap['n_boot'], seed=bootstrap['seed'],
+    key = None
+    if cache is not None:
+        p._aligned(y, pred, *groups.values(), *([] if pred_b is None else [pred_b]))
+        p._labels(y)
+        if (not pred.isin([0, 1]).all() or any(group.isna().any() for group in groups.values())
+                or pred_b is not None and not pred_b.isin([0, 1]).all()):
+            raise ValueError('Complete partitions and binary predictions required')
+        if not isinstance(bootstrap['n_boot'], int) or bootstrap['n_boot'] < 1:
+            raise ValueError('n_boot must be positive')
+        def series_content(series):
+            return dict(ids=series.index.tolist(), values=series.tolist())
+        key = content_hash(dict(y=series_content(y), pred=series_content(pred),
+            pred_b=None if pred_b is None else series_content(pred_b),
+            groups=[dict(name=name, content=series_content(group)) for name, group in groups.items()],
+            n_boot=bootstrap['n_boot'], seed=bootstrap['seed']))
+        if key in cache:
+            return cache[key].copy(deep=True)
+    result = pd.concat([p.gap_ci(y, pred, group, n_boot=bootstrap['n_boot'], seed=bootstrap['seed'],
                        pred_b=pred_b).assign(分組方式=name) for name, group in groups.items()], ignore_index=True)
+    if cache is not None:
+        cache[key] = result.copy(deep=True)
+    return result
 
 
-def evaluate_entry(run, entry, frame, score, rules, timing, *, raw_score=None):
+def evaluate_entry(run, entry, frame, score, rules, timing, *, raw_score=None, gap_cache=None):
     y = frame['default']; bill = p.bill_at(frame, 0)
     if entry['evaluation_kind'] == 'score_only':
         save_table(run, entry, 'rq3_lead_time', pd.DataFrame([dict(AUC=roc_auc_score(y, score) if y.nunique()==2 else np.nan,
@@ -204,7 +249,7 @@ def evaluate_entry(run, entry, frame, score, rules, timing, *, raw_score=None):
     raw['overall']['名單上限是否觸發'] = info['名單上限是否觸發']
     for name, table in report.items():save_table(run, entry, name, table)
     for name, table in raw.items():save_table(run, entry, 'raw_policy_'+name, table)
-    save_table(run, entry, 'gap_ci', gap_tables(y, final, groups, rules))
+    save_table(run, entry, 'gap_ci', gap_tables(y, final, groups, rules, cache=gap_cache))
     counts = classification_counts(y, final)
     classes = classification_table(counts)
     classes['max_list_rate'] = policy.max_list_rate
@@ -244,6 +289,7 @@ class Batch:
     """Summary identities are not model run identities. Failed snapshots stay immutable."""
     def __init__(self, level, freeze, digest, tasks, resume=None):
         self.registry = p._registry()
+        self.gap_cache = {}
         prior = None
         reused = {}
         if resume:
@@ -317,7 +363,7 @@ class Batch:
             for filename, target in [('table_4_1_row.csv',policy),('classification_report.csv',classification),
                                      ('rq3_lead_time.csv',rq3),('rq3_coverage.csv',coverage)]:
                 path=self.registry.results/row['run_id']/filename
-                if path.is_file():target.append(pd.read_csv(path))
+                if path.is_file():target.append(read_result_csv(path))
         pd.DataFrame(sources).to_csv(self.path/'source_runs.csv',index=False)
         if self.meta['level']=='L2':
             combined=pd.concat(policy)
