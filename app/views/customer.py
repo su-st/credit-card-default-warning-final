@@ -55,13 +55,13 @@ def _show_customer_summary(df, c, meta):
     if c["in_list"] == 1:
         # 依交接檔既有排名呈現名單內位置，不重算分數或名單。
         list_position = int((selected & df["risk_rank"].le(rank)).sum())
-        st.caption(f"名單內第 {list_position:,} 名（共 {count:,} 人）；全體第 {rank:,} 名。")
+        st.caption(f"名單內第 {list_position:,} 名（共 {count:,} 人），全體第 {rank:,} 名。")
     else:
         st.caption(f"名單外；本期預警名單共 {count:,} 人。")
     if meta.get("threshold") is not None:
         cap = meta.get("max_list_rate")
         cap_text = "不限制" if cap is None else f"{cap:.0%}"
-        st.caption(f"本期政策門檻：{meta['threshold']}｜名單上限：{cap_text}；以交接檔最終名單判定為準。")
+        st.caption(f"本期政策門檻：{meta['threshold']}｜名單上限：{cap_text}，以交接檔最終名單判定為準。")
     if meta.get("mode") == "歷史回測" and c.get("actual_default") in (0, 1):
         st.caption("歷史回測實際結果：" + ("違約" if c["actual_default"] == 1 else "未違約"))
 
