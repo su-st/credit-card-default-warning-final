@@ -2,7 +2,8 @@
 
 Records contain aggregate counts and provenance only. Attempts are immutable once
 finished. A pre-send checkpoint blocks automatic retries after uncertain delivery.
-No dotenv loading, customer messaging, model training or policy selection occurs.
+Only the module CLI loads the project dotenv before importing setting readers.
+Ordinary imports never load dotenv. No customer messaging or model changes occur.
 """
 import argparse
 from contextlib import contextmanager
@@ -13,6 +14,13 @@ import os
 from pathlib import Path
 import re
 from uuid import uuid4
+
+# Match app/main.py without causing dotenv reads on ordinary imports. This must
+# precede app.data and notify imports, which consume process settings.
+if __name__ == '__main__':
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parents[1] / '.env', override=False)
 
 from app import data
 from notify import line_push

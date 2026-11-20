@@ -239,10 +239,10 @@ def test_cli_force_and_exit_status(setup_batch, capsys):
     assert 'fake-secret' not in capsys.readouterr().out
 
 
-def test_batch_has_no_customer_route_or_dotenv_read():
+def test_batch_has_no_customer_route_or_test_data_read():
     import ast
     tree = ast.parse(Path(batch.__file__).read_text())
-    forbidden = {'send_customer_care', 'push_text', 'load_dotenv', 'final_test', 'outer_splits'}
+    forbidden = {'send_customer_care', 'push_text', 'final_test', 'outer_splits'}
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, 'id', '')
@@ -331,3 +331,55 @@ def test_missing_staff_configuration_uses_existing_strict_route(setup_batch, mon
 
 # Reuse synthetic registry fixtures, never local records or a real dataset.
 from test_registry import synthetic  # noqa: E402,F401
+
+
+def test_import_does_not_load_dotenv(monkeypatch):
+    import importlib
+    import dotenv
+
+    loader = Mock(side_effect=AssertionError('Import must not load dotenv'))
+    monkeypatch.setattr(dotenv, 'load_dotenv', loader)
+    importlib.reload(batch)
+    loader.assert_not_called()
+
+
+@pytest.mark.parametrize('cli,process_override', [(False, False), (True, False), (True, True)])
+def test_isolated_cli_loads_dotenv_before_settings_without_disclosure(tmp_path, cli, process_override):
+    # Copy only code to an isolated project. The actual project .env is never
+    # opened. Setting readers assert values at import time, before --help runs.
+    import os
+    import subprocess
+    import sys
+
+    for package in ('app', 'notify', 'src'):
+        folder = tmp_path / package
+        folder.mkdir()
+        (folder / '__init__.py').write_text('')
+    (tmp_path / 'app/batch_run.py').write_text(Path(batch.__file__).read_text())
+    values = {'PLATFORM_RUN_ID': 'fake-file-run', 'LINE_SEND_ENABLED': 'false',
+              'LINE_CHANNEL_ACCESS_TOKEN': 'fake-file-token',
+              'LINE_TEST_CUSTOMER_ID': 'fake-file-customer', 'LINE_TEST_STAFF_ID': 'fake-file-staff'}
+    (tmp_path / '.env').write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
+    expected = {key: ('fake-process-' + key.lower() if process_override else value if cli else None)
+                for key, value in values.items()}
+    def reader(keys):
+        return 'import os\n' + ''.join(
+            f'assert os.getenv({key!r}) == {expected[key]!r}, "settings load order"\n' for key in keys)
+    (tmp_path / 'app/data.py').write_text(reader(['PLATFORM_RUN_ID']))
+    (tmp_path / 'notify/line_push.py').write_text(reader([key for key in values if key != 'PLATFORM_RUN_ID']))
+    (tmp_path / 'notify/staff_digest.py').write_text('def build_digest(*args, **kwargs): pass\n')
+    (tmp_path / 'src/config.py').write_text('from pathlib import Path\nROOT = Path(__file__).resolve().parents[1]\n')
+    env = os.environ.copy()
+    for key in (*values, 'LINE_TEST_USER_ID', 'PYTHON_DOTENV_DISABLED'):
+        env.pop(key, None)
+    if process_override:
+        env.update(expected)
+    env['PYTHONPATH'] = str(tmp_path)
+    command = [sys.executable, '-m', 'app.batch_run', '--help'] if cli else [
+        sys.executable, '-c', 'import app.batch_run']
+    result = subprocess.run(command, cwd=tmp_path, env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, 'Isolated bootstrap failed'
+    output = result.stdout + result.stderr
+    for value in (*values.values(), *(value for value in expected.values() if value is not None)):
+        assert value not in output
+    assert not (tmp_path / 'outputs').exists()
