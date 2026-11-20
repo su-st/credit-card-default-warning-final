@@ -120,7 +120,7 @@ class SafetyTests(unittest.TestCase):
 
     def test_real_mode_ui_and_error_are_distinct_mocked(self):
         for failure in [False, True]:
-            with self.subTest(failure=failure), patch.object(line_push, 'SEND_ENABLED', True), patch.object(line_push, 'push_text', side_effect=RuntimeError('fail') if failure else None, return_value='已送出到測試帳號。'):
+            with self.subTest(failure=failure), patch.object(line_push, 'SEND_ENABLED', True), patch.object(line_push, 'send_customer_care', side_effect=RuntimeError('fail') if failure else None, return_value='已送出到測試帳號。'):
                 a = self.app()
                 a.button[1].click().run()
                 a.checkbox[0].check().run()
@@ -152,7 +152,7 @@ class SafetyTests(unittest.TestCase):
 
     def test_ui_requires_new_approval_after_each_send(self):
         with patch.object(line_push, 'SEND_ENABLED', True), \
-             patch.object(line_push, 'push_text', return_value='已送出到測試帳號。') as send:
+             patch.object(line_push, 'send_customer_care', return_value='已送出到測試帳號。') as send:
             a = self.app()
             a.button[1].click().run()
             self.assertTrue(a.button[2].disabled)

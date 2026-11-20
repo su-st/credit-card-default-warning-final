@@ -155,6 +155,7 @@ git checkout exp/tuning && git merge main
 ## LINE Bot
 
 1. 在 LINE Developers 建立 Messaging API channel
-2. 在 `.env` 填入 Channel access token 和測試帳號的 User ID
-3. 執行 `python -m notify.line_push` 測試，手機應該收到一則訊息
-4. 平台上必須勾選「我已確認訊息內容正確」才能發送，只會發到測試帳號
+2. 在本機依 `.env.example` 設定測試客戶與測試行員帳號，分別使用 `LINE_TEST_CUSTOMER_ID` 與 `LINE_TEST_STAFF_ID`，不要提交或分享設定內容。舊名稱 `LINE_TEST_USER_ID` 只相容客戶帳號，使用時會提醒改名。
+3. `LINE_SEND_ENABLED` 預設維持 false。CLI 不提供發送功能，無論環境設定都不會推播。
+4. 客戶訊息仍限固定模板，每次都須確認相同內容，修改、換客戶或發送後都要重新核准。行員摘要只含人數、最多十位客戶的 ID 與排名及平台連結，不需逐則核准，但同樣受總開關控制。
+5. 風險名單頁可預覽行員摘要，摘要範圍與瀏覽滑桿無關，名單總人數仍由交接政策決定。平台連結只允許本機、私有測試網段或保留的 `.test` 網域根頁，不建立公開網址。同一帳號僅為「同一測試帳號模擬」，不同帳號才可驗證分別接收的流程。
