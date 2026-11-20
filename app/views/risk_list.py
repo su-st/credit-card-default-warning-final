@@ -48,6 +48,30 @@ def _staff_panel(frame):
                 st.success(result)
 
 
+def _batch_panel():
+    from app.batch_run import latest_batch
+
+    st.subheader('最近一次批次')
+    try:
+        record = latest_batch()
+        if record is None:
+            st.caption('尚無批次紀錄。')
+            return
+        st.write(f"期別：{record['period']}，執行時間：{record['executed_at']}")
+        st.write(f"名單人數：{record['list_count'] if record['list_count'] is not None else '未取得'}")
+        st.write(f"檢查結果：{record['status']}")
+        st.write('是否已通知：' + ('是' if record['notified'] else '否'))
+        labels = {'platform_validation': '平台資料與政策', 'handoff_complete': '交接欄位',
+                  'nonempty': '名單非空', 'within_policy_cap': '政策人數上限',
+                  'duplicate_guard': '同期重複通知防護', 'execution_ok': '執行完成'}
+        if record['checks']:
+            st.caption('檢查項目：' + '，'.join(
+                f"{labels[name]}={'通過' if passed else '未通過'}"
+                for name, passed in record['checks'].items()))
+    except Exception:
+        st.error('批次紀錄無法驗證，請人工確認。')
+
+
 def render(df, meta):
     st.header('每月風險名單')
     st.caption('預警名單依本次政策決定並按風險排名顯示，瀏覽範圍不會改變預警名單。')
@@ -72,3 +96,4 @@ def render(df, meta):
         st.caption(f'瀏覽排名前 {n:,} 人，政策預警名單仍為 {len(selected):,} 人。')
         _show(_table(df.head(n)))
     _staff_panel(df)
+    _batch_panel()
