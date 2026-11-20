@@ -1,0 +1,62 @@
+{
+  "aggregation": "signed sum per original feature, then mean absolute value",
+  "analysis": "T-陳4 SHAP",
+  "case_customer_ids": [
+    10,
+    19,
+    24
+  ],
+  "case_selection": "three smallest holdout IDs; no score/label selection",
+  "configuration": {
+    "engineered": false,
+    "lag": 0,
+    "name": "XGBoost",
+    "params": {
+      "colsample_bytree": 0.7,
+      "eval_metric": "logloss",
+      "gamma": 0.0,
+      "learning_rate": 0.01,
+      "max_depth": 6,
+      "min_child_weight": 3,
+      "n_estimators": 500,
+      "random_state": 42,
+      "reg_lambda": 10.0,
+      "subsample": 0.8
+    },
+    "sensitive": false
+  },
+  "created_at": "2026-11-19T18:51:20.297428+00:00",
+  "data_sha256": "88bd2bd25327b52af2148b7437740aca427aaf8f0e52ad782ee8bbae44b509bd",
+  "description": "T-陳4 SHAP cases from registered baseline",
+  "descriptive_only": true,
+  "finished_at": "2026-11-19T18:51:21.069532+00:00",
+  "git_commit": "06e53ea5e8018372940d0448d5a54da8ea3f6112",
+  "git_dirty": false,
+  "level": "L1-H",
+  "model_hash": "2e5eaddb5b6ba5644f113df55ac6a5d2a2931763b6f3fb44ee12ac17ff9bfd53",
+  "model_id": "xgb-m1-ns-dev19200-71ecbeaeb7d7",
+  "model_path": "outputs/models/xgb-m1-ns-dev19200-71ecbeaeb7d7-2e5eaddb5b6b/model.joblib",
+  "model_record": "outputs/models/xgb-m1-ns-dev19200-71ecbeaeb7d7-2e5eaddb5b6b/model.json",
+  "n_explained": 3,
+  "not_for_performance_or_model_selection": true,
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "0ff1e1f3db66a84b72d9ad8dfd9182a634b384b4a8ffd5bde483e4de39e2d435",
+  "protocol_run": true,
+  "python": "3.12.10",
+  "rules_freeze_id": "g2a-20261116",
+  "rules_freeze_sha256": "094f874a8096ef3c4c8db0d51b9e0fba2d356a41b9c67db6531a1d3b59aaf95b",
+  "run_id": "20261119-185120-faf2e52debf8",
+  "shap_mode": "cases",
+  "shap_scale": "XGBoost raw margin / log-odds for default=1",
+  "source_git_commit": "22b84fe48c87715913c0681c4d56ae80cb6aed8c",
+  "source_model_hash": "2e5eaddb5b6ba5644f113df55ac6a5d2a2931763b6f3fb44ee12ac17ff9bfd53",
+  "source_run_id": "20261117-120145-2a163b0210a9",
+  "status": "complete"
+}
