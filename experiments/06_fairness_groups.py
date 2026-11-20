@@ -55,10 +55,31 @@ def make_partitions(df: pd.DataFrame) -> dict:
     return parts
 
 
+import os
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import font_manager
 
-plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "DejaVu Sans"]
+FONT_CANDIDATES = [
+    "/mnt/c/Windows/Fonts/msjh.ttc",
+    "C:/Windows/Fonts/msjh.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+]
+font_name = None
+for fp in FONT_CANDIDATES:
+    if os.path.exists(fp):
+        try:
+            font_manager.fontManager.addfont(fp)
+            font_name = font_manager.FontProperties(fname=fp).get_name()
+            break
+        except Exception as e:
+            print(f"提醒：字型 {fp} 載入失敗（{e}），改試下一個")
+if font_name:
+    plt.rcParams["font.family"] = font_name
+else:
+    print("提醒：找不到中文字型，改用預設字型，圖上的中文可能顯示成方塊（數據不受影響）")
 plt.rcParams["axes.unicode_minus"] = False
 
 
@@ -82,8 +103,16 @@ def plot_group_metrics_with_ci(run, groups_df: pd.DataFrame, mname: str) -> None
         sub = groups_df[groups_df["政策比較"] == policy].copy() if policy is not None else groups_df.copy()
         if sub.empty:
             continue
-        slug = _safe_slug(policy, f"p{idx}") if policy is not None else ""
-        suffix = f"_{slug}" if slug else ""
+        policy_code_map = {
+            "共同門檻0.5": "s",
+            "固定名單前20%": "n",
+            "正式政策": "c",
+        }
+        if policy is None:
+            suffix = ""
+        else:
+            code = policy_code_map.get(str(policy)) or _safe_slug(policy, f"p{idx}")
+            suffix = f"_{code}"
         title_p = f"（{policy}）" if policy is not None else ""
         labels = (
             sub["分組方式"].astype(str) + "｜" + sub["族群"].astype(str)
