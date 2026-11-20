@@ -150,7 +150,7 @@ def render(df, meta):
     st.caption("LINE 模式：模擬，不會對外發送。" if simulation else "LINE 模式：實際發送至設定的測試帳號。")
     if st.button("發送 LINE（測試帳號）", disabled=not (ok and approved and not reason)):
         try:
-            result = line_push.push_text(msg, approved_text=st.session_state["customer_approval"][1])
+            result = line_push.send_customer_care(msg, approved_text=st.session_state["customer_approval"][1])
         except Exception:
             outcome = ("error", "LINE 發送失敗，請檢查設定。請勿直接重複發送。")
         else:

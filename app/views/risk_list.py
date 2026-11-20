@@ -2,6 +2,8 @@
 import streamlit as st
 
 from app.data import BACKTEST, list_summary
+from notify import line_push
+from notify.staff_digest import PREVIEW_LIMIT, build_digest, render_digest
 
 
 def _table(frame):
@@ -14,6 +16,36 @@ def _table(frame):
 def _show(frame):
     st.dataframe(frame, hide_index=True, width='stretch',
                  column_config={'風險分數': st.column_config.NumberColumn(format='%.4f')})
+
+
+def _staff_panel(frame):
+    st.subheader('行員名單摘要')
+    if line_push.same_test_account():
+        st.warning('行員與客戶由同一測試帳號模擬')
+    try:
+        digest = build_digest(frame, platform_url=line_push.PLATFORM_URL)
+        preview = render_digest(digest)
+    except (ValueError, TypeError, OverflowError):
+        st.error('無法建立行員摘要，請檢查交接名單與本機或測試連結設定。')
+        return
+    st.caption(f'摘要最多列出前 {PREVIEW_LIMIT} 位，名單總人數依交接政策，完整名單請在本機或測試平台查看。')
+    st.code(preview, language=None)
+    simulation = line_push.is_simulation('staff')
+    st.caption('LINE 行員摘要：模擬，不會對外發送。' if simulation else 'LINE 行員摘要：實際發送至設定的測試行員。')
+    configured = line_push.recipient_configured('staff')
+    enabled = configured and (not line_push.SEND_ENABLED or line_push.ready('staff'))
+    if not enabled:
+        st.caption('行員通知設定尚未完成，目前僅供預覽。')
+    if st.button('發送行員名單摘要', key='staff_digest_send', disabled=not enabled):
+        try:
+            result = line_push.send_staff_digest(digest)
+        except Exception:
+            st.error('行員摘要發送失敗，請檢查設定，請勿直接重複發送。')
+        else:
+            if simulation:
+                st.info(result)
+            else:
+                st.success(result)
 
 
 def render(df, meta):
@@ -39,3 +71,4 @@ def render(df, meta):
                       value=min(max(len(selected), 50), len(df)), step=1, key='browse_count')
         st.caption(f'瀏覽排名前 {n:,} 人，政策預警名單仍為 {len(selected):,} 人。')
         _show(_table(df.head(n)))
+    _staff_panel(df)
