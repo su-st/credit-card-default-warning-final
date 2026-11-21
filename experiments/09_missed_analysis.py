@@ -336,7 +336,77 @@ def main():
 
     compare = pd.DataFrame(rows)
     run.save_csv("missed_methods_compare.csv", compare)
+    # ---------- 方法 A～E：無延遲違約者被辨識比例比較 ----------
+    metric = "無延遲違約者被辨識比例（自算，描述用）"
 
+    categories = [
+        "共同門檻 0.5",
+        "固定名單前 20%",
+        "正式政策",
+    ]
+
+    method_order = [
+        "A 基準 M1-NS",
+        "B 加入繳款狀態次數",
+        "C 再加入金額變化",
+        "D 分群建模",
+        "E 無延遲群門檻",
+    ]
+
+    chart_data = compare.copy()
+    chart_data["圖表比較方式"] = chart_data["比較"].replace(
+        {"正式政策（E）": "正式政策"}
+    )
+
+    chart_data = (
+        chart_data.pivot(
+            index="方法",
+            columns="圖表比較方式",
+            values=metric,
+        )
+        .reindex(index=method_order, columns=categories)
+    )
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+
+    x = np.arange(len(method_order))
+    width = 0.25
+
+    for i, category in enumerate(categories):
+        values = chart_data[category].to_numpy(dtype=float) * 100
+
+        bars = ax.bar(
+            x + (i - 1) * width,
+            values,
+            width,
+            label=category,
+        )
+
+        for bar, value in zip(bars, values):
+            if np.isfinite(value):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.5,
+                    f"{value:.2f}%",
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(method_order)
+    ax.set_ylabel("無延遲違約者被辨識比例（%）")
+    ax.set_xlabel("比較方法")
+    ax.set_title("方法 A～E：無延遲違約者被辨識比例比較")
+    ax.legend()
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+    max_value = np.nanmax(chart_data.to_numpy(dtype=float)) * 100
+    ax.set_ylim(0, max_value * 1.18)
+
+    fig.tight_layout()
+    run.save_fig("missed_methods_compare.png", fig)
+    plt.close(fig)
     cand = result_E["candidates"].copy()
     # 依 final_cost 最低選擇；成本相同時，選較高的無延遲群門檻。
     best_index = cand.sort_values(
