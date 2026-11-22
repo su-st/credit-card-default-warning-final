@@ -1,0 +1,3 @@
+actual,predicted_0,predicted_1,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id,seed
+0,4165,508,L3,f3b-sex,rq1-group-threshold,xgb-tuned-m1-ns-s42train-541e2b285da6-l3-bf2dcf1c,20261122-155601-13108c19f9ee,g2b-20261122,g2a-20261116,raw,M1-NS,性別,0,False,20261122-155601-13108c19f9ee,group-f67a9b4314eee014,45
+1,635,692,L3,f3b-sex,rq1-group-threshold,xgb-tuned-m1-ns-s42train-541e2b285da6-l3-bf2dcf1c,20261122-155601-13108c19f9ee,g2b-20261122,g2a-20261116,raw,M1-NS,性別,0,False,20261122-155601-13108c19f9ee,group-f67a9b4314eee014,45

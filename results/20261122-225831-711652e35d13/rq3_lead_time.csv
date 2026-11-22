@@ -1,0 +1,2 @@
+AUC,fit_seconds,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,seed
+0.7034485655784299,0.543449671997223,L3,rq3-lag4,rq3-lead-time,xgb-tuned-lag4-s42train-541e2b285da6-l3-91999f34,20261122-225831-711652e35d13,g2b-20261122,g2a-20261116,raw,lag4,,4,False,20261122-225831-711652e35d13,51

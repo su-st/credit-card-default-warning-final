@@ -1,0 +1,3 @@
+actual,predicted_0,predicted_1,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id,seed
+0,4166,507,L3,f6-b-n,rq2-f6,xgb-tuned-09-b-s42train-541e2b285da6-l3-7f93771a,20261122-163331-579555392d53,g2b-20261122,g2a-20261116,raw,09 B,n,0,False,20261122-163331-579555392d53,top_n-ee3c31e91f0ecbdc,47
+1,634,693,L3,f6-b-n,rq2-f6,xgb-tuned-09-b-s42train-541e2b285da6-l3-7f93771a,20261122-163331-579555392d53,g2b-20261122,g2a-20261116,raw,09 B,n,0,False,20261122-163331-579555392d53,top_n-ee3c31e91f0ecbdc,47

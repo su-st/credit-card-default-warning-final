@@ -1,0 +1,129 @@
+{
+  "comparison_id": "rq2-baselines",
+  "configuration": {
+    "engineered": false,
+    "lag": 0,
+    "method": "raw",
+    "name": "邏輯迴歸",
+    "params": {
+      "class_weight": "balanced",
+      "max_iter": 3000
+    },
+    "sensitive": false
+  },
+  "created_at": "2026-11-22T16:41:57.016848+00:00",
+  "cv_seed": 42,
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "description": "L3 policy 48/rq2-lr0-n",
+  "entry": "rq2-lr0-n",
+  "evaluation_task": "48/rq2-lr0-n",
+  "finished_at": "2026-11-22T16:42:34.917481+00:00",
+  "git_commit": "096e819b3448bbb82b0021f83b6298ab3e57de83",
+  "git_dirty": false,
+  "level": "L3",
+  "model_freeze_id": "g2b-20261122",
+  "model_freeze_sha256": "669d9338b4731f81361de296930f252acb262ae0681d402cf27f253f3289cb14",
+  "model_hash": "93d9ac17768f50573d10558d28fd2cfad78e6b8312e22286f56a418522d879b2",
+  "model_id": "lr-baseline-lr0-s42train-541e2b285da6-l3-fd9a279a",
+  "model_key": "LR0",
+  "model_path": "outputs/models/lr-baseline-lr0-s42train-541e2b285da6-l3-fd9a279a-93d9ac17768f/model.joblib",
+  "model_record": "outputs/models/lr-baseline-lr0-s42train-541e2b285da6-l3-fd9a279a-93d9ac17768f/model.json",
+  "model_source_run_id": "20261122-164118-9f1dcc75ca6f",
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "215cf4fbace53f14bc723a289a94ceccf5dadacb8cffea8051a657d6f5ea21f4",
+  "policy_hash": "ee3c31e91f0ecbdcbe8279188336b7ffabb4f99a63cade1071d585098434031d",
+  "policy_id": "top_n-ee3c31e91f0ecbdc",
+  "policy_source_run_id": "20261122-164157-045f266579bb",
+  "protocol_run": true,
+  "python": "3.12.3",
+  "retraining": {
+    "configuration_hash": "71082273e7ccee3b5b11586bc937b40aa4209bace597b97b4bd58ac4d353e795",
+    "cv_seed": 42,
+    "fit_run_id": "20261122-164118-9f1dcc75ca6f",
+    "fit_seconds": 0.0246738689893391,
+    "fold_assignment_hash": "d0f102847da5ce44ca2b2673449ecfbaee4e4dc7cea98dbaa005ec3375b94fea",
+    "independent_fit": true,
+    "n_splits": 5,
+    "oof_scores_hash": "0f0a5a6faef79abcdb266e33899bd138c1b58e797e6b486cc6ff01ecd7011277",
+    "seed": 48,
+    "training_ids_hash": "c9465f75378305e8e8ddb5cb7a0c3f55b97325caae793fee7f266c82cc229483"
+  },
+  "rules_freeze_id": "g2a-20261116",
+  "rules_freeze_sha256": "094f874a8096ef3c4c8db0d51b9e0fba2d356a41b9c67db6531a1d3b59aaf95b",
+  "run_id": "20261122-164157-045f266579bb",
+  "seed": 48,
+  "status": "complete",
+  "summary_id": "summary-l3-a54011478a424531a84fb1dedfd072c0",
+  "training_timing": {
+    "artifact_seconds": 0.0009481269808020443,
+    "calibrator_fit_seconds": 0.0,
+    "cv_seed": 42,
+    "environment": {
+      "logical_cpus": 32,
+      "machine": "x86_64",
+      "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+      "packages": {
+        "joblib": "1.6.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pytest": "9.2.0",
+        "scikit-learn": "1.9.1",
+        "xgboost": "3.4.1"
+      },
+      "processor": "x86_64",
+      "python": "3.12.3",
+      "threadpools": [
+        {
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scikit_learn.libs/libgomp-e985bcbb.so.1.0.0",
+          "internal_api": "openmp",
+          "num_threads": 32,
+          "prefix": "libgomp",
+          "user_api": "openmp",
+          "version": null
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-f48b354e.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.34.106.0"
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-5f890258.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.31.dev"
+        }
+      ]
+    },
+    "final_telemetry_commit_excluded": true,
+    "finished_at": "2026-11-22T16:41:57.397115+00:00",
+    "fit_seconds": 0.0246738689893391,
+    "measurement_scope": "L3 training/policy",
+    "model_threads": null,
+    "oof_seconds": 0.17273159098112956,
+    "policy_seconds": 1.894900924526155e-05,
+    "split_seed": 48,
+    "started_at": "2026-11-22T16:41:57.395688+00:00",
+    "submodel_fit_seconds": {},
+    "submodel_total_fit_seconds": 0,
+    "timestamp_basis": "UTC start plus monotonic elapsed",
+    "training_count": 24000,
+    "training_timing_id": "lr-baseline-lr0-s42train-541e2b285da6-l3-fd9a279a",
+    "wall_seconds": 0.0014271749823819846
+  }
+}

@@ -1,0 +1,2 @@
+policy_id,AUC,Precision,Recall,F1,名單人數,名單比例,原始名單人數,名單上限是否觸發,誤報人數,漏判人數,違約者涵蓋率,帳單金額涵蓋率,總成本,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id
+single-1ef43daea2d4bf8e,0.7773918408610384,0.5585365853658537,0.517709118311982,0.5373484552209621,1230,0.205,1230,True,543,640,0.517709118311982,0.5406659434456509,30056309.3,L2,f6-b-c,rq2-f6,xgb-tuned-09-b-s42train-541e2b285da6,20261122-144117-c30952b45727,g2b-20261122,g2a-20261116,raw,09 B,c,0,True,20261119-084915-13fa79a6fe9b
