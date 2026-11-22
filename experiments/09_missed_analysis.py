@@ -16,6 +16,7 @@
     missed_E_candidates.csv、missed_E_cost.png
 執行（在專案根目錄）：python experiments/09_missed_analysis.py
 """
+import os
 import sys
 from pathlib import Path
 
@@ -26,6 +27,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import numpy as np
 import pandas as pd
 
@@ -58,11 +60,24 @@ except ImportError:
         "找不到 src.data.age_group：請問組長年齡層的共用函式在哪裡，不要自己定義分組。"
     )
 
-plt.rcParams["font.sans-serif"] = [
-    "Microsoft JhengHei",
-    "Noto Sans CJK TC",
-    "DejaVu Sans",
+FONT_CANDIDATES = [
+    "/mnt/c/Windows/Fonts/msjh.ttc",
+    "C:/Windows/Fonts/msjh.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
 ]
+font_name = None
+for fp in FONT_CANDIDATES:
+    if os.path.exists(fp):
+        try:
+            font_manager.fontManager.addfont(fp)
+            font_name = font_manager.FontProperties(fname=fp).get_name()
+            break
+        except Exception as e:
+            print(f"提醒：字型 {fp} 載入失敗（{e}），改試下一個")
+if font_name:
+    plt.rcParams["font.family"] = font_name
+else:
+    print("提醒：找不到中文字型，改用預設字型，圖上的中文可能顯示成方塊（數據不受影響）")
 plt.rcParams["axes.unicode_minus"] = False
 
 RULES_FREEZE_ID = "g2a-20261116"
