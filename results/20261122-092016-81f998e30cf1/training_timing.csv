@@ -1,0 +1,2 @@
+fit_seconds,oof_seconds,crossfit_seconds,run_id,model_id
+0.851285242009908,4.5733846930088475,0.0589864860085072,20261122-092016-81f998e30cf1,xgb-tuned-ns-s42train
