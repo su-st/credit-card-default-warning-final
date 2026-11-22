@@ -16,6 +16,7 @@ F7 機率校準評估（資料層級 L1：24,000 筆訓練集，seed 42，完全
 用法：
     python experiments/08_calibration.py
 """
+import os
 import sys
 from pathlib import Path
 
@@ -25,6 +26,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
@@ -38,7 +40,24 @@ FOLDS = 5
 BINS = 10
 RATES = [0.05, 0.10, 0.20, 0.30, 0.50]  # 名單比例；0.20 是平台使用的前 20%
 
-plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "Noto Sans CJK TC", "DejaVu Sans"]
+FONT_CANDIDATES = [
+    "/mnt/c/Windows/Fonts/msjh.ttc",
+    "C:/Windows/Fonts/msjh.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+]
+font_name = None
+for fp in FONT_CANDIDATES:
+    if os.path.exists(fp):
+        try:
+            font_manager.fontManager.addfont(fp)
+            font_name = font_manager.FontProperties(fname=fp).get_name()
+            break
+        except Exception as e:
+            print(f"提醒：字型 {fp} 載入失敗（{e}），改試下一個")
+if font_name:
+    plt.rcParams["font.family"] = font_name
+else:
+    print("提醒：找不到中文字型，改用預設字型，圖上的中文可能顯示成方塊（數據不受影響）")
 plt.rcParams["axes.unicode_minus"] = False
 
 def run_analysis(df):
