@@ -107,7 +107,8 @@ def test_sent_period_never_resends_even_with_new_run(setup_batch, tmp_path):
     original_bytes = records(tmp_path)[0].read_bytes()
     bundle['run']['run_id'] = 'fake-new-run'
     second = batch.run_batch('2026-11')
-    assert second['status'] == '已推播，略過' and second['notified']
+    # A previous run blocks this period, but does not notify the newly selected run.
+    assert second['status'] == '已推播，略過' and not second['notified']
     assert second['previous_batch_ids'] == [first['batch_id']]
     sender.assert_called_once()
     assert len(records(tmp_path)) == 2

@@ -83,7 +83,7 @@ def _history(folder):
     return sorted(records, key=lambda record: (record['executed_at'], record['batch_id']))
 
 
-def latest_batch(*, root=None):
+def latest_batch(*, root=None, run_id=None):
     """Read only the latest aggregate record for the page, never credentials/data.
 
     Returns period, executed_at, list_count, checks, notified, status and source
@@ -95,6 +95,8 @@ def latest_batch(*, root=None):
         for folder in base.iterdir():
             if folder.is_dir() and re.fullmatch(r'[0-9]{4}-(0[1-9]|1[0-2])', folder.name):
                 records.extend(_history(folder))
+    if run_id is not None:
+        records = [record for record in records if record['run_id'] == run_id]
     if not records:
         return None
     latest = max(records, key=lambda record: (record['executed_at'], record['batch_id']))
@@ -151,8 +153,8 @@ def run_batch(period, *, force=False, root=None):
             if not all(record['checks'].values()):
                 raise ValueError('Batch checks failed')
             if blocked and not force:
-                record['notified'] = any(item['notified'] for item in blocked)
-                record['status'] = '已推播，略過' if record['notified'] else ABNORMAL
+                record['notified'] = any(item['notified'] and item.get('run_id') == meta['run_id'] for item in blocked)
+                record['status'] = '已推播，略過' if any(item['notified'] for item in blocked) else ABNORMAL
                 record['checks']['duplicate_guard'] = False
             else:
                 record['checks']['duplicate_guard'] = True

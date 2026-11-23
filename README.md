@@ -96,8 +96,18 @@ git check-attr eol -- docs/frozen_rules.md data/default_of_credit_card_clients.c
 ## 執行
 
 平台只在本機執行，不要部署到公開網址。在本機 `.env` 設定 `PLATFORM_RUN_ID`，
-G2b 前填入 `00_build_dev_base.py` 印出的 M1-NS-dev19200 開發 run_id。
-平台會驗證整組模型、政策與交接檔；只有已完成且驗證成功的 L1-H run 能載入。
+並與 `PLATFORM_FAIRNESS_RUN_ID` 配套切換。正式設定如下，只在本機設定，不提交或截圖 `.env`。
+
+```dotenv
+PLATFORM_RUN_ID=20261122-144512-34512c5d87a3
+PLATFORM_FAIRNESS_RUN_ID=20261122-144515-a7bbbea040a4
+```
+
+平台會驗證整組凍結模型、政策與 6,000 人交接檔，公平性比較必須來自同一凍結版本及 summary。
+正式資料載入失敗會顯示錯誤，不自動退回開發資料。門檻沿用 L1 OOF 的正式政策，不在平台重選。
+需要開發與功能測試時，明確指定 `00_build_dev_base.py` 印出的 M1-NS-dev19200 L1-H run，
+並搭配 L1 的 F3 比較 run。不得混用模型、門檻或結果。
+切換資料不會清除批次歷史或解除同期防重送，舊 run 的通知紀錄不代表新資料已通知。
 
 
 ```bash

@@ -65,6 +65,22 @@ def edit_csv(root, run, name, change):
 def test_reads_saved_tables_and_provenance_without_recalculation(comparison, level):
     root=comparison
     for run in ('m1-run','ns-run'):edit_meta(root,run,'level',level)
+    if level == 'L2':
+        # Formal summaries now require their completed evaluation manifest.
+        from src.registry import file_hash
+        freeze=root/'outputs/frozen/model-synthetic.json';freeze.parent.mkdir(parents=True)
+        freeze.write_text('{}')
+        manifest=dict(status='complete',level='L2',summary_id='summary-synthetic',
+            model_freeze_id='synthetic',model_freeze_sha256=file_hash(freeze),
+            rules_freeze_id='g2a-20261116',tasks={})
+        for role,run in [('M1','m1-run'),('M1-NS','ns-run')]:
+            path=root/'results'/run/'run.json';meta=json.loads(path.read_text())
+            meta.update({k:manifest[k] for k in ('summary_id','model_freeze_id','model_freeze_sha256')})
+            meta.update(model_hash='hash',policy_hash='policy-hash');path.write_text(json.dumps(meta))
+            manifest['tasks']['fairness-'+role]=dict(status='complete',run_id=run,model_hash='hash',policy_hash='policy-hash',
+                run_sha256=file_hash(path),result_sha256={f.name:file_hash(f) for f in path.parent.glob('*.csv')})
+        folder=root/'results/summary-synthetic';folder.mkdir()
+        (folder/'evaluation_manifest.json').write_text(json.dumps(manifest))
     bundle=load(root)
     assert bundle['source']==dict(level=level,rules_freeze_id='g2a-20261116',m1_run_id='m1-run',
         m1_ns_run_id='ns-run',comparison_names=list(platform.FAIRNESS_COMPARISONS),comparison_direction='M1-NS 減 M1')

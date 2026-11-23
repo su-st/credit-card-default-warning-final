@@ -41,6 +41,8 @@ cap = meta['max_list_rate']
 st.sidebar.caption('名單上限：不限制' if cap is None else f'名單上限：{cap:.0%}')
 if mode == SIMULATION:
     st.warning('模擬，未串接真實銀行系統')
+elif meta['level'] == 'L2':
+    st.info('正式歷史回測（L2 測試集），不是即時銀行資料。')
 elif meta['level'] == 'L1-H':
     st.info('L1-H 歷史回測僅供功能確認，不是正式效能結果。')
 
