@@ -1,0 +1,3 @@
+actual,predicted_0,predicted_1,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id,seed
+0,4125,548,L3,rq2-lr1-c,rq2-baselines,lr-baseline-lr1-s42train-541e2b285da6-l3-7d00b335,20261122-151344-f96276a7b98a,g2b-20261122,g2a-20261116,raw,LR1,c,0,True,20261122-151344-f96276a7b98a,single-b22fd4858dfe54bb,43
+1,720,607,L3,rq2-lr1-c,rq2-baselines,lr-baseline-lr1-s42train-541e2b285da6-l3-7d00b335,20261122-151344-f96276a7b98a,g2b-20261122,g2a-20261116,raw,LR1,c,0,True,20261122-151344-f96276a7b98a,single-b22fd4858dfe54bb,43

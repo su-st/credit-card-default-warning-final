@@ -1,0 +1,2 @@
+Brier分數,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id,seed
+0.13383061987254916,L3,f7-iso-c,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6-l3-b2cfe1fb,20261122-225002-ca7bed2fe274,g2b-20261122,g2a-20261116,calibrated,M1-NS,c,0,True,20261122-225002-ca7bed2fe274,single-7648121df1c3842e,50

@@ -1,0 +1,6 @@
+分組方式,EO 差距,FPR 差距,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id
+性別,0.006562321106937885,0.03876393632789843,L2,f7-raw-s,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6,20261122-144510-c9a197caf16d,g2b-20261122,g2a-20261116,raw,M1-NS,s,0,False,20261119-084912-edf8f2cc08ff,single-3cb780ad1b45922d
+年齡層,0.06919924337957117,0.0457893162764223,L2,f7-raw-s,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6,20261122-144510-c9a197caf16d,g2b-20261122,g2a-20261116,raw,M1-NS,s,0,False,20261119-084912-edf8f2cc08ff,single-3cb780ad1b45922d
+性別×年齡層,0.08489224373700899,0.10591212101078554,L2,f7-raw-s,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6,20261122-144510-c9a197caf16d,g2b-20261122,g2a-20261116,raw,M1-NS,s,0,False,20261119-084912-edf8f2cc08ff,single-3cb780ad1b45922d
+教育程度,0.24634146341463414,0.1441506700470844,L2,f7-raw-s,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6,20261122-144510-c9a197caf16d,g2b-20261122,g2a-20261116,raw,M1-NS,s,0,False,20261119-084912-edf8f2cc08ff,single-3cb780ad1b45922d
+婚姻狀況,0.20775373518804735,0.0719768294804026,L2,f7-raw-s,f7-calibration,xgb-tuned-m1-ns-s42train-541e2b285da6,20261122-144510-c9a197caf16d,g2b-20261122,g2a-20261116,raw,M1-NS,s,0,False,20261119-084912-edf8f2cc08ff,single-3cb780ad1b45922d

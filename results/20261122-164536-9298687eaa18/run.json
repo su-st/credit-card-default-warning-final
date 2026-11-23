@@ -1,0 +1,294 @@
+{
+  "comparison_id": "rq1-group-threshold",
+  "configuration": {
+    "engineered": false,
+    "lag": 0,
+    "method": "raw",
+    "name": "XGBoost",
+    "params": {
+      "colsample_bytree": 0.7,
+      "eval_metric": "logloss",
+      "gamma": 0.0,
+      "learning_rate": 0.01,
+      "max_depth": 6,
+      "min_child_weight": 3,
+      "n_estimators": 500,
+      "random_state": 42,
+      "reg_lambda": 10.0,
+      "subsample": 0.8
+    },
+    "sensitive": false
+  },
+  "created_at": "2026-11-22T16:45:36.701282+00:00",
+  "cv_seed": 42,
+  "data_sha256": "4edce6da569b2c30788a85fd98a9bafb1a983e8ca1a7aac875dd7ff853cbd0bb",
+  "description": "L3 policy 48/f3b-sex",
+  "entry": "f3b-sex",
+  "evaluation_task": "48/f3b-sex",
+  "finished_at": "2026-11-22T16:46:15.970893+00:00",
+  "git_commit": "096e819b3448bbb82b0021f83b6298ab3e57de83",
+  "git_dirty": false,
+  "level": "L3",
+  "model_freeze_id": "g2b-20261122",
+  "model_freeze_sha256": "669d9338b4731f81361de296930f252acb262ae0681d402cf27f253f3289cb14",
+  "model_hash": "f36a378e6df913aed6cde8172ffece648b538c9e738b8d5130c8fc1818b75588",
+  "model_id": "xgb-tuned-m1-ns-s42train-541e2b285da6-l3-470c6366",
+  "model_key": "M1-NS",
+  "model_path": "outputs/models/xgb-tuned-m1-ns-s42train-541e2b285da6-l3-470c6366-f36a378e6df9/model.joblib",
+  "model_record": "outputs/models/xgb-tuned-m1-ns-s42train-541e2b285da6-l3-470c6366-f36a378e6df9/model.json",
+  "model_source_run_id": "20261122-163956-9722355772c0",
+  "packages": {
+    "joblib": "1.6.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pytest": "9.2.0",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1"
+  },
+  "params_hash": "cb4921d3383ba6c914fc1bf4632e275e9c4f4cff7e21a8bea8ed2d192e0b8366",
+  "policy_hash": "1340cffe4274b17e766255bca2af1164281280370186c436351498908fc00ff0",
+  "policy_id": "group-1340cffe4274b17e",
+  "policy_source_run_id": "20261122-164536-9298687eaa18",
+  "protocol_run": true,
+  "python": "3.12.3",
+  "retraining": {
+    "configuration_hash": "cbe44e55858dc8c6259e2dbe737f8085fe048a3979b823e3fb59cb007a672d22",
+    "cv_seed": 42,
+    "fit_run_id": "20261122-163956-9722355772c0",
+    "fit_seconds": 0.675975701014977,
+    "fold_assignment_hash": "d0f102847da5ce44ca2b2673449ecfbaee4e4dc7cea98dbaa005ec3375b94fea",
+    "independent_fit": true,
+    "n_splits": 5,
+    "oof_scores_hash": "89b6320b703a45e82a19bc42679723bc7ef725def356427aed5eef297b4811ba",
+    "seed": 48,
+    "training_ids_hash": "c9465f75378305e8e8ddb5cb7a0c3f55b97325caae793fee7f266c82cc229483"
+  },
+  "rules_freeze_id": "g2a-20261116",
+  "rules_freeze_sha256": "094f874a8096ef3c4c8db0d51b9e0fba2d356a41b9c67db6531a1d3b59aaf95b",
+  "run_id": "20261122-164536-9298687eaa18",
+  "scenario": {
+    "contact_cost": 50,
+    "loss_ratio": 0.5,
+    "max_list_rate": 0.2,
+    "rescue_rate": 0.2
+  },
+  "search_evidence": {
+    "base_policy": {
+      "evidence": {
+        "oof_scores_hash": "89b6320b703a45e82a19bc42679723bc7ef725def356427aed5eef297b4811ba",
+        "training_ids_hash": "c9465f75378305e8e8ddb5cb7a0c3f55b97325caae793fee7f266c82cc229483"
+      },
+      "kind": "single",
+      "max_list_rate": 0.2,
+      "partition_name": null,
+      "rate": null,
+      "scenario": {
+        "contact_cost": 50,
+        "loss_ratio": 0.5,
+        "max_list_rate": 0.2,
+        "rescue_rate": 0.2
+      },
+      "selection": "cost",
+      "threshold": 0.61,
+      "thresholds": null
+    },
+    "candidates_path": "outputs/runs/20261122-164536-9298687eaa18/search_candidates.csv",
+    "candidates_sha256": "16745de2a424649c931d03c54b2d397f27a6ea894588d53ec024cf69fe0d7bdc",
+    "cap_triggered": true,
+    "final_results": {
+      "gaps": [
+        {
+          "EO 差距": 0.0007169867283881581,
+          "FPR 差距": 0.00807041789025209,
+          "分組方式": "性別"
+        }
+      ],
+      "groups": [
+        {
+          "FNR": 0.48618307426597585,
+          "FPR": 0.11571051534935407,
+          "FPR 上限": 0.12330550842540283,
+          "FPR 下限": 0.10852542501486945,
+          "Recall": 0.5138169257340242,
+          "Recall 上限": 0.5341327528070552,
+          "Recall 下限": 0.493455339369095,
+          "分組方式": "性別",
+          "小樣本": false,
+          "族群": "男性",
+          "未違約人數": 7199,
+          "總人數": 9515,
+          "違約人數": 2316
+        },
+        {
+          "FNR": 0.4854660875375877,
+          "FPR": 0.10764009745910198,
+          "FPR 上限": 0.11343818035437019,
+          "FPR 下限": 0.10210423710994342,
+          "Recall": 0.5145339124624123,
+          "Recall 上限": 0.5324090953156776,
+          "Recall 下限": 0.49662146942905727,
+          "分組方式": "性別",
+          "小樣本": false,
+          "族群": "女性",
+          "未違約人數": 11492,
+          "總人數": 14485,
+          "違約人數": 2993
+        }
+      ],
+      "overall": [
+        {
+          "AUC": 0.7806828915205009,
+          "F1": 0.5401127707982986,
+          "Precision": 0.56875,
+          "Recall": 0.5142211339235261,
+          "policy_id": "group-1340cffe4274b17e",
+          "原始名單人數": 4838,
+          "名單上限是否觸發": true,
+          "名單人數": 4800,
+          "名單比例": 0.2,
+          "帳單金額涵蓋率": 0.5219070743568659,
+          "漏判人數": 2579,
+          "總成本": 113455911.1,
+          "誤報人數": 2070,
+          "違約者涵蓋率": 0.5142211339235261
+        }
+      ]
+    },
+    "kind": "F3b",
+    "partition_name": "性別",
+    "policy_hash": "1340cffe4274b17e766255bca2af1164281280370186c436351498908fc00ff0",
+    "policy_id": "group-1340cffe4274b17e",
+    "raw_results": {
+      "gaps": [
+        {
+          "EO 差距": 0.004058116030092096,
+          "FPR 差距": 0.005633940340652371,
+          "分組方式": "性別"
+        }
+      ],
+      "groups": [
+        {
+          "FNR": 0.48618307426597585,
+          "FPR": 0.11571051534935407,
+          "FPR 上限": 0.12330550842540283,
+          "FPR 下限": 0.10852542501486945,
+          "Recall": 0.5138169257340242,
+          "Recall 上限": 0.5341327528070552,
+          "Recall 下限": 0.493455339369095,
+          "分組方式": "性別",
+          "小樣本": false,
+          "族群": "男性",
+          "未違約人數": 7199,
+          "總人數": 9515,
+          "違約人數": 2316
+        },
+        {
+          "FNR": 0.48212495823588375,
+          "FPR": 0.1100765750087017,
+          "FPR 上限": 0.11592974465124918,
+          "FPR 下限": 0.10448399956201081,
+          "Recall": 0.5178750417641163,
+          "Recall 上限": 0.5357420679435719,
+          "Recall 下限": 0.49996218984592955,
+          "分組方式": "性別",
+          "小樣本": false,
+          "族群": "女性",
+          "未違約人數": 11492,
+          "總人數": 14485,
+          "違約人數": 2993
+        }
+      ],
+      "overall": [
+        {
+          "AUC": null,
+          "F1": 0.5400611018034888,
+          "Precision": 0.5663497312939231,
+          "Recall": 0.5161047278206818,
+          "policy_id": "group-1340cffe4274b17e",
+          "原始名單人數": null,
+          "名單上限是否觸發": null,
+          "名單人數": 4838,
+          "名單比例": 0.20158333333333334,
+          "帳單金額涵蓋率": 0.522993033311894,
+          "漏判人數": 2569,
+          "總成本": 113430355.7,
+          "誤報人數": 2098,
+          "違約者涵蓋率": 0.5161047278206818
+        }
+      ]
+    },
+    "results_candidates_sha256": "16745de2a424649c931d03c54b2d397f27a6ea894588d53ec024cf69fe0d7bdc",
+    "t0": 0.61,
+    "target_definition": "single_policy_oof_recall",
+    "target_recall": 0.5174232435486908
+  },
+  "search_evidence_hash": "80451417d373ab5df8920d565f35ecb1c1093eaccf1de090c712bb4dcfd36c13",
+  "seed": 48,
+  "status": "complete",
+  "summary_id": "summary-l3-a54011478a424531a84fb1dedfd072c0",
+  "training_timing": {
+    "artifact_seconds": 0.007854265015339479,
+    "calibrator_fit_seconds": 0.0,
+    "cv_seed": 42,
+    "environment": {
+      "logical_cpus": 32,
+      "machine": "x86_64",
+      "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+      "packages": {
+        "joblib": "1.6.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pytest": "9.2.0",
+        "scikit-learn": "1.9.1",
+        "xgboost": "3.4.1"
+      },
+      "processor": "x86_64",
+      "python": "3.12.3",
+      "threadpools": [
+        {
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scikit_learn.libs/libgomp-e985bcbb.so.1.0.0",
+          "internal_api": "openmp",
+          "num_threads": 32,
+          "prefix": "libgomp",
+          "user_api": "openmp",
+          "version": null
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-f48b354e.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.34.106.0"
+        },
+        {
+          "architecture": "SkylakeX",
+          "filepath": "/home/user/credit-warning/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-5f890258.so",
+          "internal_api": "openblas",
+          "num_threads": 32,
+          "prefix": "libscipy_openblas",
+          "threading_layer": "pthreads",
+          "user_api": "blas",
+          "version": "0.3.31.dev"
+        }
+      ]
+    },
+    "final_telemetry_commit_excluded": true,
+    "finished_at": "2026-11-22T16:45:37.596845+00:00",
+    "fit_seconds": 0.675975701014977,
+    "measurement_scope": "L3 training/policy",
+    "model_threads": -1,
+    "oof_seconds": 4.2438949149800465,
+    "policy_seconds": 0.33827277898672037,
+    "split_seed": 48,
+    "started_at": "2026-11-22T16:45:37.248281+00:00",
+    "submodel_fit_seconds": {},
+    "submodel_total_fit_seconds": 0,
+    "timestamp_basis": "UTC start plus monotonic elapsed",
+    "training_count": 24000,
+    "training_timing_id": "xgb-tuned-m1-ns-s42train-541e2b285da6-l3-470c6366",
+    "wall_seconds": 0.34856419800780714
+  }
+}

@@ -1,0 +1,6 @@
+分組方式,EO 差距,FPR 差距,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id
+性別,0.00505903761932025,0.023399451293051862,L2,rq2-dt0-n,rq2-baselines,dt-baseline-dt0-s42train-541e2b285da6,20261122-143523-e196fc18d7cb,g2b-20261122,g2a-20261116,raw,DT0,n,0,False,20261119-084914-dffe85377c79,top_n-ee3c31e91f0ecbdc
+年齡層,0.0771386179050928,0.021556539608115544,L2,rq2-dt0-n,rq2-baselines,dt-baseline-dt0-s42train-541e2b285da6,20261122-143523-e196fc18d7cb,g2b-20261122,g2a-20261116,raw,DT0,n,0,False,20261119-084914-dffe85377c79,top_n-ee3c31e91f0ecbdc
+性別×年齡層,0.13085546412546223,0.05834606781387726,L2,rq2-dt0-n,rq2-baselines,dt-baseline-dt0-s42train-541e2b285da6,20261122-143523-e196fc18d7cb,g2b-20261122,g2a-20261116,raw,DT0,n,0,False,20261119-084914-dffe85377c79,top_n-ee3c31e91f0ecbdc
+教育程度,0.33658536585365856,0.08749417912764525,L2,rq2-dt0-n,rq2-baselines,dt-baseline-dt0-s42train-541e2b285da6,20261122-143523-e196fc18d7cb,g2b-20261122,g2a-20261116,raw,DT0,n,0,False,20261119-084914-dffe85377c79,top_n-ee3c31e91f0ecbdc
+婚姻狀況,0.16898505924781043,0.013404384215881748,L2,rq2-dt0-n,rq2-baselines,dt-baseline-dt0-s42train-541e2b285da6,20261122-143523-e196fc18d7cb,g2b-20261122,g2a-20261116,raw,DT0,n,0,False,20261119-084914-dffe85377c79,top_n-ee3c31e91f0ecbdc

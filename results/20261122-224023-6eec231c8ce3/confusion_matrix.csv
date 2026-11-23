@@ -1,0 +1,3 @@
+actual,predicted_0,predicted_1,level,entry_id,comparison_id,model_id,run_id,model_freeze_id,rules_freeze_id,score_version,model_key,policy_kind,lag,is_primary,threshold_source_run_id,policy_id,seed
+0,4160,513,L3,f3b-sex-age,rq1-group-threshold,xgb-tuned-m1-ns-s42train-541e2b285da6-l3-b2cfe1fb,20261122-224023-6eec231c8ce3,g2b-20261122,g2a-20261116,raw,M1-NS,性別×年齡層,0,False,20261122-224023-6eec231c8ce3,group-502b6a222a859961,50
+1,670,657,L3,f3b-sex-age,rq1-group-threshold,xgb-tuned-m1-ns-s42train-541e2b285da6-l3-b2cfe1fb,20261122-224023-6eec231c8ce3,g2b-20261122,g2a-20261116,raw,M1-NS,性別×年齡層,0,False,20261122-224023-6eec231c8ce3,group-502b6a222a859961,50
