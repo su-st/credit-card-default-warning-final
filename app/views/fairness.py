@@ -263,7 +263,33 @@ def _show_comparison_charts(selected):
         chart = pd.concat({model: result["groups"].set_index("族群")[metric]
                            for model, result in selected.items()}, axis=1)
         if chart.notna().any().any():
-            st.bar_chart(chart, stack=False)
+            if metric == "Recall":
+                # Use the same grouped-bar layout with an explicit 0–1 scale.
+                recall_data = (
+                    chart.rename_axis("group")
+                    .reset_index()
+                    .melt(id_vars="group", var_name="model", value_name="recall")
+                )
+                st.vega_lite_chart(
+                    recall_data,
+                    {
+                        "mark": "bar",
+                        "encoding": {
+                            "x": {"field": "group", "type": "ordinal",
+                                  "sort": list(chart.index)},
+                            "xOffset": {"field": "model", "type": "nominal",
+                                        "sort": ["M1", "M1-NS"]},
+                            "y": {"field": "recall", "type": "quantitative",
+                                  "scale": {"domain": [0, 1]},
+                                  "axis": {"title": "Recall"}},
+                            "color": {"field": "model", "type": "nominal",
+                                      "scale": {"domain": ["M1", "M1-NS"]},
+                                      "legend": {"title": None}},
+                        },
+                    },
+                )
+            else:
+                st.bar_chart(chart, stack=False)
         else:
             st.info("本分組沒有可繪製的數值。")
 
