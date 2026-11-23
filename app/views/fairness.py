@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from app.data import (BACKTEST, FAIRNESS_COMPARISONS, load_fairness_comparison,
-                      load_platform_run, page_data)
+                      load_platform_run, load_platform_fairness, page_data)
 from src import protocol as p
 
 
@@ -268,7 +268,7 @@ def _show_comparison_charts(selected):
             st.info("本分組沒有可繪製的數值。")
 
 
-def _show_model_comparison(group, platform_level="L1-H"):
+def _show_model_comparison(group, platform_level="L1-H", platform_meta=None):
     """T-蔡2：只透過 C6 讀 F3 彙總結果，不計算指標或讀客戶資料。"""
     st.divider()
     st.subheader("含與不含敏感屬性模型比較")
@@ -277,7 +277,7 @@ def _show_model_comparison(group, platform_level="L1-H"):
     st.caption(COMPARISON_METHODS[method])
     st.caption(f"目前分組：{group}（沿用上方分組方式）")
     try:
-        bundle = load_fairness_comparison()
+        bundle = load_fairness_comparison(platform_run=platform_meta)
         source = bundle["source"]
         expected_level = "L1" if platform_level == "L1-H" else "L2"
         if source["level"] != expected_level:
@@ -333,13 +333,17 @@ def render(df, meta):
             st.error(f"公平性資料驗證或評估失敗，請回報組長：{exc}")
             return
     else:
-        # 目前 C6 尚未開放正式交接，只有後續經核准的 C6 才會傳入 L2。
-        # 正式單模型表須用平台模型自己的已存檔結果，不能用 F3 或重算代替。
-        st.caption("歷史回測｜L2 正式資料")
-        st.info("正式單模型公平性結果待共用介面提供，本區不以 F3 研究模型結果代替平台模型。")
+        st.caption("正式歷史回測（L2 測試集），單模型結果來自平台同一 run 的已存檔結果。")
+        try:
+            evaluation = load_platform_fairness(meta['run_id'])
+            if any(evaluation['source'][key] != meta[key] for key in
+                   ('run_id', 'model_id', 'policy_id', 'model_freeze_id', 'rules_freeze_id', 'summary_id')):
+                raise ValueError("公平性單模型結果與平台來源不一致")
+        except Exception as exc:
+            st.error(f"正式公平性結果驗證失敗：{exc}")
+            return
 
     _show_explanation()
     group = st.selectbox("分組方式", GROUPS)
-    if level == "L1-H":
-        _show_results(evaluation["groups"], evaluation["gaps"], group)
-    _show_model_comparison(group, level)
+    _show_results(evaluation["groups"], evaluation["gaps"], group)
+    _show_model_comparison(group, level, meta)

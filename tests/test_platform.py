@@ -184,7 +184,7 @@ def test_formal_level_rejected_before_handoff_access(tmp_path,monkeypatch):
     write_json(folder/'run.json',{'run_id':'synthetic-blocked','level':'L2','status':'complete',
                                  'predictions_verified':True,'predictions_sha256':'a'*64})
     monkeypatch.setattr(platform,'file_hash',lambda *a:pytest.fail('accessed formal handoff'))
-    with pytest.raises(IntegrityError,match='L1-H'):
+    with pytest.raises(IntegrityError,match='platform-c'):
         platform.load_platform_run('synthetic-blocked',root=tmp_path)
 
 

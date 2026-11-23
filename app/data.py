@@ -28,22 +28,27 @@ def _cached_predictions(run_id, predictions_sha256, _verified_frame):
 
 
 def load_platform_run(run_id=None, *, root=None):
-    """Load a complete, verified bundle; reject non-L1-H before reading scores.
+    """Load an explicitly selected L1-H or approved L2 platform-c bundle.
 
-    Pages receive the same interface when formal support is added later. C6
-    deliberately does not enable L2 or load an unapproved test handoff.
+    No default run and no development fallback. Registry validates the frozen
+    model/policy and complete handoff before anything reaches a page.
     """
     run_id = run_id if run_id is not None else os.getenv('PLATFORM_RUN_ID', '')
     if not run_id:
-        raise ValueError('請設定 PLATFORM_RUN_ID，填入已完成的 M1-NS-dev19200 開發 run_id。')
+        raise ValueError('請設定 PLATFORM_RUN_ID，明確指定正式 L2 或 L1-H 開發 run_id。')
     run_id = identifier(run_id)
     registry = Registry(ROOT if root is None else root)
     folder = registry.runs / run_id
     meta = read_json(folder / 'run.json')
     if meta.get('run_id') != run_id or meta.get('status') != 'complete':
         raise IntegrityError('平台只接受識別一致且狀態為 complete 的 run')
-    if meta.get('level') != 'L1-H':
-        raise IntegrityError('目前平台只接受 L1-H 開發 run，正式版本尚未開放')
+    if meta.get('level') not in ('L1-H', 'L2'):
+        raise IntegrityError('平台只接受明確指定的 L1-H 或正式 L2 run')
+    if meta['level'] == 'L2':
+        if (meta.get('entry') != 'platform-c' or meta.get('git_dirty') is not False
+                or meta.get('verified_customers') != 6000):
+            raise IntegrityError('正式 L2 必須為乾淨且完整驗證的 platform-c')
+        _l2_results(registry, meta, 'platform-c', ())
     if meta.get('predictions_verified') is not True:
         raise IntegrityError('交接檔尚未通過完整客戶分數驗證')
     checksum = meta.get('predictions_sha256')
@@ -68,6 +73,11 @@ def load_platform_run(run_id=None, *, root=None):
         raise IntegrityError('歷史標籤必須為完整的二元值')
     if not np.isfinite(frame['bill_amt_latest'].to_numpy(dtype=float)).all():
         raise IntegrityError('帳單金額必須為有限數值')
+    if meta['level'] == 'L2':
+        if (len(frame) != 6000 or frame['customer_id'].nunique() != 6000
+                or set(frame['data_split']) != {'test'}
+                or bundle['threshold'].get('source_level') != 'L1'):
+            raise IntegrityError('正式交接必須為 6000 位測試客戶，政策來源維持 L1')
     return {
         'run': meta,
         'model_record': bundle['model_record'],
@@ -86,6 +96,7 @@ def page_data(bundle, mode):
     run, threshold = bundle['run'], bundle['policy']
     policy = threshold.get('protocol_policy', threshold.get('policy', {}))
     meta = {key: run[key] for key in ('model_id', 'run_id', 'policy_id', 'level', 'predictions_sha256')}
+    meta.update({key: run[key] for key in ('rules_freeze_id', 'model_freeze_id', 'summary_id') if key in run})
     meta.update(mode=mode, threshold=threshold['threshold'],
                 rule=policy.get('selection', policy.get('rule', 'fixed')),
                 max_list_rate=policy.get('max_list_rate'), scenario=threshold.get('scenario'))
@@ -195,7 +206,7 @@ def _fairness_ci_structure(frame, expected, direction):
         raise IntegrityError('公平性信賴區間或成對比較不完整，或比較方向不符')
 
 
-def load_fairness_comparison(run_id=None, *, root=None):
+def load_fairness_comparison(run_id=None, *, root=None, platform_run=None):
     """讀取 F3 已存檔的 M1 與 M1-NS 比較，不重算指標或載入模型及客戶資料。
 
     參數：run_id 是 M1-NS 的 F3 run_id，省略時讀取環境設定
@@ -218,7 +229,7 @@ def load_fairness_comparison(run_id=None, *, root=None):
               comparison_names/comparison_direction。
     各 DataFrame 原樣保留 CSV 欄位及缺失值，不四捨五入、不重算或補造指標。
     兩個模型必須同層級，只接受 L1 或 L2。此介面與 PLATFORM_RUN_ID 獨立，
-    不改變 load_platform_run 僅接受 L1-H 的限制，也不讀取 predictions.csv。
+    不讀取 predictions.csv。platform_run 可傳入頁面 metadata，核對正式比較與平台同批次。
 
     最短範例：bundle = load_fairness_comparison('已完成的M1-NS比較run_id')
     族群表：bundle['models']['M1-NS']['groups']，成對表：bundle['paired']。
@@ -242,6 +253,20 @@ def load_fairness_comparison(run_id=None, *, root=None):
     if (m1_meta['level'] != ns_meta['level'] or m1_meta['model_id'] == ns_meta['model_id']
             or not paired['m1_model_id'].eq(m1_meta['model_id']).all()):
         raise IntegrityError('公平性成對比較的資料層級或 M1 模型來源不符')
+    if ns_meta['level'] == 'L2':
+        keys = ('summary_id', 'model_freeze_id', 'model_freeze_sha256', 'rules_freeze_id')
+        if any(not ns_meta.get(k) or ns_meta[k] != m1_meta.get(k) for k in keys):
+            raise IntegrityError('L2 公平性比較必須使用相同凍結版本與 summary')
+        names = tuple('fairness_' + name + '.csv' for name in ('overall', 'groups', 'gaps_point', 'gaps'))
+        _l2_results(registry, ns_meta, 'fairness-M1-NS', names)
+        _l2_results(registry, m1_meta, 'fairness-M1', names)
+    if platform_run is not None:
+        expected = 'L1' if platform_run['level'] == 'L1-H' else 'L2'
+        if ns_meta['level'] != expected:
+            raise IntegrityError('平台與 F3 比較資料層級不相符')
+        if expected == 'L2' and any(ns_meta.get(k) != platform_run.get(k)
+                for k in ('summary_id', 'model_freeze_id', 'rules_freeze_id')):
+            raise IntegrityError('平台與 F3 比較凍結版本或 summary 不相符')
     m1_tables, m1_hashes = _fairness_tables(registry, m1_meta, 'M1')
     _fairness_structure(m1_tables, 'M1')
     _fairness_structure(ns_tables, 'M1-NS')
@@ -268,3 +293,65 @@ def load_fairness_comparison(run_id=None, *, root=None):
             'source': dict(level=ns_meta['level'], rules_freeze_id=FAIRNESS_RULES_ID,
                            m1_run_id=m1_id, m1_ns_run_id=run_id,
                            comparison_names=list(FAIRNESS_COMPARISONS), comparison_direction='M1-NS 減 M1')}
+
+
+def _l2_results(registry, meta, task, filenames):
+    """Verify saved L2 files against the completed evaluation manifest, read only."""
+    summary_id = identifier(meta.get('summary_id', ''))
+    manifest = read_json(registry.results / summary_id / 'evaluation_manifest.json')
+    if (manifest.get('status') != 'complete' or manifest.get('level') != 'L2'
+            or manifest.get('summary_id') != summary_id
+            or any(not meta.get(k) or manifest.get(k) != meta[k]
+                   for k in ('model_freeze_id', 'model_freeze_sha256', 'rules_freeze_id'))
+            or file_hash(registry.outputs / 'frozen' / f"model-{identifier(meta['model_freeze_id'])}.json")
+                != meta['model_freeze_sha256']):
+        raise IntegrityError('正式結果的 summary 或凍結版本不符')
+    item = manifest.get('tasks', {}).get(task, {})
+    raw = _fairness_bytes(registry, meta['run_id'], 'run.json')
+    if (item.get('status') != 'complete' or item.get('run_id') != meta['run_id']
+            or item.get('run_sha256') != hashlib.sha256(raw).hexdigest()
+            or json.loads(raw) != meta
+            or any(item.get(k) != meta.get(k) for k in ('model_hash', 'policy_hash'))):
+        raise IntegrityError('正式結果的 run 來源或雜湊不符')
+    result = {}
+    for name in filenames:
+        raw = _fairness_bytes(registry, meta['run_id'], name)
+        if item.get('result_sha256', {}).get(name) != hashlib.sha256(raw).hexdigest():
+            raise IntegrityError('正式結果 CSV 雜湊不符')
+        result[name] = pd.read_csv(BytesIO(raw), dtype={k: str for k in
+            ('entry_id', 'comparison_id', 'model_id', 'policy_id', 'run_id', 'model_key')})
+    return result
+
+
+def load_platform_fairness(run_id=None, *, root=None):
+    """讀取平台 L2 run 的已存檔公平性結果，不重算。
+
+    run_id 省略時使用 PLATFORM_RUN_ID。回傳 groups、gaps、gap_ci 三個
+    DataFrame 與 source（run/model/policy/freeze/summary 識別）。不讀客戶資料。
+    """
+    run_id = identifier(run_id if run_id is not None else os.getenv('PLATFORM_RUN_ID', ''))
+    registry = Registry(ROOT if root is None else root)
+    meta, _ = _fairness_meta(registry, run_id)
+    if meta['level'] != 'L2' or meta.get('entry') != 'platform-c':
+        raise IntegrityError('正式單模型公平性僅接受 L2 platform-c')
+    saved = _l2_results(registry, meta, 'platform-c', ('groups.csv', 'gaps.csv', 'gap_ci.csv'))
+    from src.protocol import GROUP_COLUMNS, GAP_COLUMNS
+    schemas = {'groups': set(GROUP_COLUMNS), 'gaps': set(GAP_COLUMNS),
+               'gap_ci': {'分組方式', '指標', '估計值', '下限', '上限', '有效重抽', '無效重抽', '可靠', '比較'}}
+    for name, columns in schemas.items():
+        table = saved[name + '.csv']
+        if (table.empty or not (columns | {'run_id', 'model_id', 'policy_id', 'entry_id',
+                'model_freeze_id', 'rules_freeze_id', 'level'}) <= set(table)
+                or any(not table[k].eq(meta[k]).all() for k in
+                    ('run_id', 'model_id', 'policy_id', 'model_freeze_id', 'rules_freeze_id', 'level'))
+                or not table['entry_id'].eq('platform-c').all()
+                or set(table['分組方式']) != set(FAIRNESS_PARTITIONS)):
+            raise IntegrityError('正式單模型公平性欄位或來源不符')
+        unique = ['分組方式'] + (['族群'] if name == 'groups' else ['指標'] if name == 'gap_ci' else [])
+        if table.duplicated(unique).any() or table[unique].isna().any().any():
+            raise IntegrityError('正式單模型公平性有重複或空白項目')
+    _fairness_ci_structure(saved['gap_ci.csv'].assign(政策比較='正式政策'),
+        {('正式政策', g) for g in FAIRNESS_PARTITIONS}, '單一名單')
+    return {**{name: saved[name + '.csv'] for name in schemas},
+            'source': {k: meta[k] for k in ('level', 'run_id', 'model_id', 'policy_id',
+                       'model_freeze_id', 'rules_freeze_id', 'summary_id')}}

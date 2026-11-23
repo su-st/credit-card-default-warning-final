@@ -48,12 +48,17 @@ def _staff_panel(frame):
                 st.success(result)
 
 
-def _batch_panel():
+def _batch_panel(meta=None):
     from app.batch_run import latest_batch
 
     st.subheader('最近一次批次')
     try:
-        record = latest_batch()
+        record = latest_batch(run_id=meta['run_id']) if meta else latest_batch()
+        if meta:
+            st.caption(f"目前資料：{meta['level']}，run_id：{meta['run_id']}")
+            previous = latest_batch()
+            if previous is not None and previous['run_id'] != meta['run_id']:
+                st.info('另有其他 run 的歷史批次，不代表目前資料已通知。')
         if record is None:
             st.caption('尚無批次紀錄。')
             return
@@ -85,6 +90,7 @@ def render(df, meta):
         d.metric('涵蓋違約者帳單金額比例', '無法計算' if summary['bill_coverage'] is None else f"{summary['bill_coverage']:.1%}")
     else:
         st.metric('預警名單人數', f'{len(selected):,}')
+    st.caption(f'資料人數：{len(df):,} 人')
     st.caption('模型判斷依據，不代表違約原因')
     st.subheader('預警名單')
     show = _table(selected)
@@ -96,4 +102,4 @@ def render(df, meta):
         st.caption(f'瀏覽排名前 {n:,} 人，政策預警名單仍為 {len(selected):,} 人。')
         _show(_table(df.head(n)))
     _staff_panel(df)
-    _batch_panel()
+    _batch_panel(meta)

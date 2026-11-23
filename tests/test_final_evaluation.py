@@ -97,7 +97,12 @@ def test_l2_complete_batch_reports_handoff_and_fairness_reader(release,monkeypat
         if key.startswith('f7-iso'):
             for name in ('calibration_report.csv','calibration_bins.csv','calibration_curve.png','rank_change.csv'):
                 assert (folder/name).is_file()
-    from app.data import load_fairness_comparison
+    from app.data import load_platform_run, load_platform_fairness, load_fairness_comparison
+    verified_platform=load_platform_run(tasks['platform-c']['run_id'],root=root)
+    assert verified_platform['run']['level']=='L2'
+    assert verified_platform['policy']['source_level']=='L1'
+    saved_platform=load_platform_fairness(tasks['platform-c']['run_id'],root=root)
+    pd.testing.assert_frame_equal(saved_platform['groups'],pd.read_csv(root/'results'/tasks['platform-c']['run_id']/'groups.csv'))
     fairness=load_fairness_comparison(tasks['fairness-M1-NS']['run_id'],root=root)
     assert fairness['source']['level']=='L2'
     assert fairness['source']['m1_run_id']==tasks['fairness-M1']['run_id']
