@@ -11,3 +11,5 @@ __pycache__/
 data/credit.zip
 .DS_Store
 .venv/
+.agents/
+.claude/
