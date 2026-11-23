@@ -115,6 +115,16 @@ python -m streamlit run app/main.py       # 開啟本機平台，瀏覽器打開
 cd experiments && python 01_tuning.py     # 執行某個實驗（檔名換成自己的）
 ```
 
+注意：程式載入 `.env` 時，已存在的環境變數優先。終端機若殘留 `PLATFORM_*`、`LINE_*` 設定，會蓋過 `.env` 的同名設定。啟動平台或批次前，若曾在終端機手動設定，請先開新終端機，或在 WSL／Bash 用 `unset` 清除曾設定的變數。
+
+以下指令只顯示相關變數名稱，不顯示值，沒有符合項目時不輸出：
+
+```bash
+env | cut -d= -f1 | grep -E '^(PLATFORM_|LINE_)'
+```
+
+例如清除平台設定可用 `unset PLATFORM_RUN_ID PLATFORM_FAIRNESS_RUN_ID`，LINE 設定也依檢查列出的名稱清除。若新終端機仍出現這些名稱，請確認啟動設定是否會重新匯入，不要列印或截圖變數值。
+
 要關閉平台時，在終端機按 Ctrl + C。
 
 ## 分工
@@ -173,7 +183,7 @@ git checkout exp/tuning && git merge main
 ## 每月批次與 Windows 工作排程器
 
 批次沿用平台 `PLATFORM_RUN_ID` 的完整驗證、政策與交接名單，不訓練模型、不重選門檻。
-目前仍只接受 L1-H，屬開發模擬，不是真實每月新增資料或正式研究結果。
+PR #57 起批次沿用平台的正式 L2 run（`PLATFORM_RUN_ID`），但 L2 是歷史測試資料，批次是每月流程的模擬，不是真實每月新增資料。
 在專案根目錄，使用專案虛擬環境執行：
 
 ```bash
