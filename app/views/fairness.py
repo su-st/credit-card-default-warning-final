@@ -248,7 +248,75 @@ def _show_model_result(model, result):
         st.warning("部分差距區間的有效重抽不足，不顯示不可靠的區間。")
 
 
-def _show_comparison_charts(selected):
+COMPARISON_MODEL_ORDER = ("M1", "M1-NS")
+COMPARISON_MODEL_COLORS = ("#4c78a8", "#f58518")
+AGE_GROUP_ORDER = ("29 歲以下", "30-39 歲", "40-49 歲", "50 歲以上")
+
+
+def _comparison_group_order(group, labels):
+    """Order known demographic labels while retaining unexpected labels."""
+    labels = list(labels)
+    normalize = lambda value: "".join(str(value).split())
+    if group == "年齡層":
+        desired = [normalize(label) for label in AGE_GROUP_ORDER]
+    elif group == "性別":
+        desired = [normalize("男性"), normalize("女性")]
+    else:
+        return labels
+
+    normalized_labels = {normalize(label): label for label in labels}
+    ordered = [normalized_labels[label] for label in desired if label in normalized_labels]
+    ordered.extend(label for label in labels if normalize(label) not in desired)
+    return ordered
+
+
+def _show_comparison_metric_chart(chart, metric, fixed_y_domain):
+    """Render a grouped M1/M1-NS chart with shared axes and legend styling."""
+    chart_data = (
+        chart.rename_axis("group")
+        .reset_index()
+        .melt(id_vars="group", var_name="model", value_name="value")
+    )
+    y_encoding = {
+        "field": "value",
+        "type": "quantitative",
+        "axis": {"title": metric},
+    }
+    if fixed_y_domain:
+        y_encoding["scale"] = {"domain": [0, 1]}
+
+    st.vega_lite_chart(
+        chart_data,
+        {
+            "mark": "bar",
+            "encoding": {
+                "x": {
+                    "field": "group",
+                    "type": "ordinal",
+                    "sort": list(chart.index),
+                    "axis": {"title": "族群"},
+                },
+                "xOffset": {
+                    "field": "model",
+                    "type": "nominal",
+                    "sort": list(COMPARISON_MODEL_ORDER),
+                },
+                "y": y_encoding,
+                "color": {
+                    "field": "model",
+                    "type": "nominal",
+                    "scale": {
+                        "domain": list(COMPARISON_MODEL_ORDER),
+                        "range": list(COMPARISON_MODEL_COLORS),
+                    },
+                    "legend": {"title": None, "orient": "top"},
+                },
+            },
+        },
+    )
+
+
+def _show_comparison_charts(selected, group):
     st.markdown("**兩模型差距比較**")
     # 僅重排來源點估計供繪圖，空值不補成 0。
     gap_chart = pd.DataFrame({model: [result["gaps"][m] for m in GAP_METRICS]
@@ -258,12 +326,18 @@ def _show_comparison_charts(selected):
     else:
         st.info("本分組沒有可繪製的差距數值。")
     st.caption("長條圖使用原始結果的數值，缺值不畫成 0。請搭配上方區間解讀。")
+    group_order = _comparison_group_order(
+        group, selected["M1"]["groups"]["族群"].tolist()
+    )
     for metric in ("Recall", "FPR"):
         st.markdown(f"**各族群 {metric} 比較**")
         chart = pd.concat({model: result["groups"].set_index("族群")[metric]
                            for model, result in selected.items()}, axis=1)
+        chart = chart.reindex(group_order)
         if chart.notna().any().any():
-            st.bar_chart(chart, stack=False)
+            _show_comparison_metric_chart(
+                chart, metric, fixed_y_domain=(metric == "Recall")
+            )
         else:
             st.info("本分組沒有可繪製的數值。")
 
@@ -302,7 +376,7 @@ def _show_model_comparison(group, platform_level="L1-H", platform_meta=None):
         _show_model_result("M1", selected["M1"])
     with b:
         _show_model_result("M1-NS", selected["M1-NS"])
-    _show_comparison_charts(selected)
+    _show_comparison_charts(selected, group)
     st.markdown("**成對比較：M1-NS 減 M1**")
     st.dataframe(_format_ci_table(paired), hide_index=True, width="stretch")
     if not paired["可靠"].eq(True).all():
