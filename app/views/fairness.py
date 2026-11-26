@@ -75,11 +75,19 @@ def _show_results(groups, gaps, group):
     b.metric("FPR 最大差距", _format_rate(g.iloc[0]["FPR 差距"]))
 
     _show_group_table(t)
-    st.bar_chart(t.set_index("族群")[["Recall", "FPR"]], stack=False)
+    chart = t.set_index("族群")[list(PLATFORM_METRIC_ORDER)]
+    chart = chart.reindex(_group_order(group, chart.index))
+    _show_grouped_metric_chart(
+        chart, "比例", x_title="族群", series_order=PLATFORM_METRIC_ORDER,
+        series_colors=PLATFORM_METRIC_COLORS,
+    )
 
 
 def _show_group_table(t):
     """共用族群表的顯示，不重算人數或指標。"""
+    order = _group_order(t["分組方式"].iloc[0], t["族群"])
+    positions = {label: i for i, label in enumerate(order)}
+    t = t.iloc[t["族群"].map(positions).argsort(kind="stable")]
     small = t["小樣本"].eq(True)
     if small.any():
         names = "、".join(t.loc[small, "族群"].astype(str))
@@ -250,32 +258,36 @@ def _show_model_result(model, result):
 
 COMPARISON_MODEL_ORDER = ("M1", "M1-NS")
 COMPARISON_MODEL_COLORS = ("#4c78a8", "#f58518")
+PLATFORM_METRIC_ORDER = ("Recall", "FPR")
+PLATFORM_METRIC_COLORS = ("#009e73", "#cc79a7")
 AGE_GROUP_ORDER = ("29 歲以下", "30-39 歲", "40-49 歲", "50 歲以上")
 
 
-def _comparison_group_order(group, labels):
+def _group_order(group, labels):
     """Order known demographic labels while retaining unexpected labels."""
     labels = list(labels)
     normalize = lambda value: "".join(str(value).split())
-    if group == "年齡層":
+    if normalize(group) == "年齡層":
         desired = [normalize(label) for label in AGE_GROUP_ORDER]
-    elif group == "性別":
+    elif normalize(group) == "性別":
         desired = [normalize("男性"), normalize("女性")]
+    elif normalize(group) == "性別×年齡層":
+        desired = [normalize(f"{sex}×{age}")
+                   for sex in ("男性", "女性") for age in AGE_GROUP_ORDER]
     else:
         return labels
 
-    normalized_labels = {normalize(label): label for label in labels}
-    ordered = [normalized_labels[label] for label in desired if label in normalized_labels]
-    ordered.extend(label for label in labels if normalize(label) not in desired)
-    return ordered
+    positions = {label: i for i, label in enumerate(desired)}
+    return sorted(labels, key=lambda label: positions.get(normalize(label), len(desired)))
 
 
-def _show_comparison_metric_chart(chart, metric, fixed_y_domain):
-    """Render a grouped M1/M1-NS chart with shared axes and legend styling."""
+def _show_grouped_metric_chart(chart, metric, *, x_title, series_order,
+                               series_colors, fixed_y_domain=False):
+    """Render grouped bars with shared axes, ordering and legend styling."""
     chart_data = (
         chart.rename_axis("group")
         .reset_index()
-        .melt(id_vars="group", var_name="model", value_name="value")
+        .melt(id_vars="group", var_name="series", value_name="value")
     )
     y_encoding = {
         "field": "value",
@@ -294,25 +306,41 @@ def _show_comparison_metric_chart(chart, metric, fixed_y_domain):
                     "field": "group",
                     "type": "ordinal",
                     "sort": list(chart.index),
-                    "axis": {"title": "族群"},
+                    "axis": {
+                        "title": x_title,
+                        "labelAngle": 0,
+                        "labelExpr": "indexof(datum.label, '×') >= 0 ? split(datum.label, '×') : datum.label",
+                        "labelLimit": 0,
+                        "labelOverlap": False,
+                        "labelLineHeight": 14,
+                    },
                 },
                 "xOffset": {
-                    "field": "model",
+                    "field": "series",
                     "type": "nominal",
-                    "sort": list(COMPARISON_MODEL_ORDER),
+                    "sort": list(series_order),
                 },
                 "y": y_encoding,
                 "color": {
-                    "field": "model",
+                    "field": "series",
                     "type": "nominal",
                     "scale": {
-                        "domain": list(COMPARISON_MODEL_ORDER),
-                        "range": list(COMPARISON_MODEL_COLORS),
+                        "domain": list(series_order),
+                        "range": list(series_colors),
                     },
                     "legend": {"title": None, "orient": "top"},
                 },
             },
         },
+        alt=f"{x_title}的{metric}比較",
+    )
+
+
+def _show_comparison_metric_chart(chart, metric, fixed_y_domain):
+    """Keep the existing two model-comparison charts' axes and colors."""
+    _show_grouped_metric_chart(
+        chart, metric, x_title="族群", series_order=COMPARISON_MODEL_ORDER,
+        series_colors=COMPARISON_MODEL_COLORS, fixed_y_domain=fixed_y_domain,
     )
 
 
@@ -322,11 +350,14 @@ def _show_comparison_charts(selected, group):
     gap_chart = pd.DataFrame({model: [result["gaps"][m] for m in GAP_METRICS]
                               for model, result in selected.items()}, index=list(GAP_METRICS))
     if gap_chart.notna().any().any():
-        st.bar_chart(gap_chart, stack=False)
+        _show_grouped_metric_chart(
+            gap_chart, "差距", x_title="指標", series_order=COMPARISON_MODEL_ORDER,
+            series_colors=COMPARISON_MODEL_COLORS,
+        )
     else:
         st.info("本分組沒有可繪製的差距數值。")
     st.caption("長條圖使用原始結果的數值，缺值不畫成 0。請搭配上方區間解讀。")
-    group_order = _comparison_group_order(
+    group_order = _group_order(
         group, selected["M1"]["groups"]["族群"].tolist()
     )
     for metric in ("Recall", "FPR"):
